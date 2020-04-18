@@ -18,7 +18,7 @@ public class PostProcessing : MonoBehaviour
   private Material m_material;
 
   protected virtual void PreRenderImage(Shader shader, RenderTexture src, RenderTexture dst) { }
-  protected virtual void PostRenderImate(Shader shader, RenderTexture src, RenderTexture dst) { }
+  protected virtual void PostRenderImage(Shader shader, RenderTexture src, RenderTexture dst) { }
 
   protected void OnRenderImage(RenderTexture src, RenderTexture dst)
   {
@@ -42,6 +42,6 @@ public class PostProcessing : MonoBehaviour
 
     Graphics.Blit(src, dst, m_material);
 
-    PostRenderImate(PostProcessingShader, src, dst);
+    PostRenderImage(PostProcessingShader, src, dst);
   }
 }
