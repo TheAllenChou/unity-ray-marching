@@ -62,7 +62,7 @@
         const float kHitDist = 0.01f;
         const float kMaxDist = 1000.0f;
         const float3 kBackground = float3(0.0f, 0.07f, 0.15f);
-        const float3 kDiffuse = float3(1.0f, 0.8f, 0.2f);
+        const float3 kDiffuse = float3(1.0f, 0.65f, 0.05f);
         const float3 kAmbient = 0.1f * kDiffuse;
         const float t = _Time.y;
 
