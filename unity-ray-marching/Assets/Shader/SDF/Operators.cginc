@@ -67,10 +67,9 @@ float sdf_opu_pow(float a, float b, float k) // 2-term concatenation
   return sdf_opu_pow_concat_res(a + b, a * b, k);
 }
 
-// use smooth cubic as default smooth union
 inline float sdf_opu_smooth(float a, float b, float h)
 {
-    return sdf_opu_cubic(a, b, h);
+  return sdf_opu_cubic(a, b, h);
 }
 
 #endif
