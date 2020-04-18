@@ -1,0 +1,66 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+
+#pragma kernel SimplexGradientGrid2
+#pragma kernel SimplexGradientGrid3
+#pragma kernel SimplexGradientCustom2
+#pragma kernel SimplexGradientCustom3
+
+#include "../SimplexNoise2D.cginc"
+#include "../SimplexNoise3D.cginc"
+
+RWStructuredBuffer<float2> input2;
+RWStructuredBuffer<float3> input3;
+RWStructuredBuffer<float2> output2;
+RWStructuredBuffer<float3> output3;
+
+int3 dimension;
+float3 scale;
+float3 offset;
+int numOctaves;
+float octaveOffsetFactor;
+
+// grid sample points
+[numthreads(1, 1, 1)]
+void SimplexGradientGrid2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = id.xy / scale.xy;
+  output2[index(id, dimension)] = 
+    snoise_grad(s, offset.xy, numOctaves, octaveOffsetFactor).xy;
+}
+
+// grid sample points
+[numthreads(1, 1, 1)]
+void SimplexGradientGrid3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = id / scale;
+  output3[index(id, dimension)] = 
+    snoise_grad(s, offset, numOctaves, octaveOffsetFactor).xyz;
+}
+
+// custom sample points
+[numthreads(1, 1, 1)]
+void SimplexGradientCustom2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = input2[id.x] / scale.xy;
+  output2[id.x] =
+    snoise_grad(s, offset.xy, numOctaves, octaveOffsetFactor).xy;
+}
+
+// custom sample points
+[numthreads(1, 1, 1)]
+void SimplexGradientCustom3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = input3[id.x] / scale;
+  output3[id.x] =
+    snoise_grad(s, offset, numOctaves, octaveOffsetFactor).xyz;
+}

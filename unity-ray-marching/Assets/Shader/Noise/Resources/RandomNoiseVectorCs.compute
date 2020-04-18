@@ -1,0 +1,33 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+#pragma kernel RandomVec2
+#pragma kernel RandomVec3
+
+#include "../RandomNoise.cginc"
+
+RWStructuredBuffer<float2> output2;
+RWStructuredBuffer<float3> output3;
+
+float seed;
+int3 dimension;
+
+[numthreads(1, 1, 1)]
+void RandomVec2(uint3 id : SV_DispatchThreadID)
+{
+  output2[index(id, dimension)] = rand_vec(seed + id.xy);
+}
+
+[numthreads(1, 1, 1)]
+void RandomVec3(uint3 id : SV_DispatchThreadID)
+{
+  output3[index(id, dimension)] = rand_vec(seed + id.xyz);
+}

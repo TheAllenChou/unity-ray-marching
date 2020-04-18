@@ -1,0 +1,39 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+#pragma kernel RandomGrid1
+#pragma kernel RandomGrid2
+#pragma kernel RandomGrid3
+
+#include "../RandomNoise.cginc"
+
+RWStructuredBuffer<float> output;
+
+float seed;
+int3 dimension;
+
+[numthreads(1, 1, 1)]
+void RandomGrid1(uint3 id : SV_DispatchThreadID)
+{
+  output[index(id, dimension)] = rand(seed + id.x);
+}
+
+[numthreads(1, 1, 1)]
+void RandomGrid2(uint3 id : SV_DispatchThreadID)
+{
+  output[index(id, dimension)] = rand(seed + id.xy);
+}
+
+[numthreads(1, 1, 1)]
+void RandomGrid3(uint3 id : SV_DispatchThreadID)
+{
+  output[index(id, dimension)] = rand(seed + id.xyz);
+}

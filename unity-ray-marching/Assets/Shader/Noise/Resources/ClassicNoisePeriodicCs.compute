@@ -1,0 +1,61 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+#pragma kernel ClassicPeriodicGrid2
+#pragma kernel ClassicPeriodicGrid3
+#pragma kernel ClassicPeriodicCustom2
+#pragma kernel ClassicPeriodicCustom3
+
+#include "../ClassicNoise2D.cginc"
+#include "../ClassicNoise3D.cginc"
+
+RWStructuredBuffer<float2> input2;
+RWStructuredBuffer<float3> input3;
+RWStructuredBuffer<float> output;
+
+int3 dimension;
+float3 scale;
+float3 offset;
+float3 period;
+int numOctaves;
+float octaveOffsetFactor;
+
+[numthreads(1, 1, 1)]
+void ClassicPeriodicGrid2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = id.xy / scale.xy;
+  output[index(id, dimension)] =
+    pnoise(s, offset.xy, period.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicPeriodicGrid3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = id / scale;
+  output[index(id, dimension)] =
+    pnoise(s, offset, period, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicPeriodicCustom2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = input2[id.x] / scale.xy;
+  output[id.x] =
+    pnoise(s, offset.xy, period.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicPeriodicCustom3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = input3[id.x] / scale;
+  output[id.x] =
+    pnoise(s, offset, period, numOctaves, octaveOffsetFactor);
+}

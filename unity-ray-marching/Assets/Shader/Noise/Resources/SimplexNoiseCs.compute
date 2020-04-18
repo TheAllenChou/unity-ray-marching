@@ -1,0 +1,61 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+#pragma kernel SimplexGrid2
+#pragma kernel SimplexGrid3
+#pragma kernel SimplexCustom2
+#pragma kernel SimplexCustom3
+
+#include "../SimplexNoise2D.cginc"
+#include "../SimplexNoise3D.cginc"
+#include "../RandomNoise.cginc"
+
+RWStructuredBuffer<float2> input2;
+RWStructuredBuffer<float3> input3;
+RWStructuredBuffer<float> output;
+
+int3 dimension;
+float3 scale;
+float3 offset;
+int numOctaves;
+float octaveOffsetFactor;
+
+[numthreads(1, 1, 1)]
+void SimplexGrid2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = id.xy / scale.xy;
+  output[index(id, dimension)] =
+    snoise(s, offset.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void SimplexGrid3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = id / scale;
+  output[index(id, dimension)] =
+    snoise(s, offset, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void SimplexCustom2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = input2[id.x] / scale.xy;
+  output[id.x] =
+    snoise(s, offset.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void SimplexCustom3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = input3[id.x] / scale;
+  output[id.x] =
+    snoise(s, offset, numOctaves, octaveOffsetFactor);
+}

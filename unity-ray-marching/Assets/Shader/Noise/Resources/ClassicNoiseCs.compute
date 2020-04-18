@@ -1,0 +1,61 @@
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+  
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+*/
+/******************************************************************************/
+
+#pragma kernel ClassicGrid2
+#pragma kernel ClassicGrid3
+#pragma kernel ClassicCustom2
+#pragma kernel ClassicCustom3
+
+#include "../ClassicNoise2D.cginc"
+#include "../ClassicNoise3D.cginc"
+#include "../RandomNoise.cginc"
+
+RWStructuredBuffer<float2> input2;
+RWStructuredBuffer<float3> input3;
+RWStructuredBuffer<float> output;
+
+int3 dimension;
+float3 scale;
+float3 offset;
+int numOctaves;
+float octaveOffsetFactor;
+
+[numthreads(1, 1, 1)]
+void ClassicGrid2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = id.xy / scale.xy;
+  output[index(id, dimension)] =
+    cnoise(s, offset.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicGrid3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = id / scale;
+  output[index(id, dimension)] =
+    cnoise(s, offset, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicCustom2(uint3 id : SV_DispatchThreadID)
+{
+  float2 s = input2[id.x] / scale.xy;
+  output[id.x] =
+    cnoise(s, offset.xy, numOctaves, octaveOffsetFactor);
+}
+
+[numthreads(1, 1, 1)]
+void ClassicCustom3(uint3 id : SV_DispatchThreadID)
+{
+  float3 s = input3[id.x] / scale;
+  output[id.x] =
+    cnoise(s, offset, numOctaves, octaveOffsetFactor);
+}
