@@ -37,15 +37,15 @@
       {
         const float3 kSphereCenter = float3(0.0f, 0.0f, 5.0f);
         const float3 kSphereRadius = 1.0f;
-        const float t = _Time.y;
+        const float t = _Time.y * 0.3f;
 
         const float a = sdf_sphere(p, kSphereCenter, kSphereRadius);
-        const float b = sdf_sphere(p + float3(2.0f * sin(2.0f * t), 0.0f, 0.f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(sin(2.0f * t)) + 0.2f));
-        const float c = sdf_sphere(p + float3(0.0f, 2.0f * cos(2.0f * t), 0.f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(cos(2.0f * t)) + 0.2f));
+        const float b = sdf_sphere(p + float3(2.0f * sin(2.0f * t), 0.0f, 0.5f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(sin(2.0f * t)) + 0.6f));
+        const float c = sdf_sphere(p + float3(0.0f, 2.0f * cos(2.0f * t), 0.5f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(cos(2.0f * t)) + 0.6f));
 
         float k = 0.5f;
-        float res = sdf_opu_smooth(a, b, k);
-        res = sdf_opu_smooth(c, res, k);
+        float res = sdf_uni_smooth(a, b, k);
+        res = sdf_uni_smooth(res, c, k);
 
         return res;
       }
@@ -58,8 +58,8 @@
 
       float3 march(float3 ro, float3 rd)
       {
-        const int kMaxSteps = 64;
-        const float kHitDist = 0.01f;
+        const int kMaxSteps = 128;
+        const float kHitDist = 0.02f;
         const float kMaxDist = 1000.0f;
         const float3 kBackground = float3(0.0f, 0.07f, 0.15f);
         const float3 kDiffuse = float3(1.0f, 0.65f, 0.05f);
