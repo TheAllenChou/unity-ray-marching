@@ -1,9 +1,28 @@
-﻿#pragma kernel RayMarch
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+
+*/
+/******************************************************************************/
+
+#pragma kernel Main
+#pragma kernel StepCountPerThread
+#pragma kernel StepCountPerTile
+#pragma kernel ShapeCountPerThread
+#pragma kernel ShapeCountPerTile
 
 #include "../SDF/SDF.cginc"
 
+#define kTileSize (8)
+
 Texture2D<float4> src;
 RWTexture2D<float4> dst;
+RWTexture2D<float> heatMap;
 
 float4x4 cameraInvProj;
 float4x4 cameraToWorld;
@@ -11,7 +30,7 @@ float4 cameraPos;
 int2 screenSize; // width / height
 
 StructuredBuffer<SdfShape> aSdfShape;
-int numSdfShapes;
+int numSdfShapes = 0;
 
 float4 rayMarchParams; // maxSteps, hitDist, maxDist, time
 float blendDist;
@@ -19,96 +38,206 @@ float blendDist;
 float4 backgroundColor;
 float4 missColor;
 
-float map(float3 p)
+float4 heatColorCool;
+float4 heatColorMedium;
+float4 heatColorHot;
+float heatAlpha;
+
+int maxCountBudget;
+
+// no keyword variant support for compute shaders yet, sigh -_-
+#define kModeMain       (0)
+#define kModeStepCount  (1)
+#define kModeShapeCount (2)
+
+float master_sdf(float3 p)
 {
-  const float3 kSphereCenter = float3(0.0f, 0.0f, 5.0f);
-  const float kSphereRadius = 1.0f;
-
   if (numSdfShapes <= 0)
-    return 1e16;
+    return kInfinity;
 
-  float res = 1e16;
+  float res = kInfinity;
 
   // union
-  for (int i = 0; i < numSdfShapes; ++i)
+  for (int iUniShape = 0; iUniShape < numSdfShapes; ++iUniShape)
   {
-    if (aSdfShape[i].data0.y != kSdfUnion)
+    if (aSdfShape[iUniShape].data0.y != kSdfUnion)
       continue;
 
-    res = sdf_uni_smooth(res, sdf_shape(p, aSdfShape[i]), blendDist);
+    res = sdf_uni_smooth(res, sdf_shape(p, aSdfShape[iUniShape]), blendDist);
   }
 
   // subtraction
-  for (int i = 0; i < numSdfShapes; ++i)
+  for (int iSubShape = 0; iSubShape < numSdfShapes; ++iSubShape)
   {
-    if (aSdfShape[i].data0.y != kSdfSubtraction)
+    if (aSdfShape[iSubShape].data0.y != kSdfSubtraction)
       continue;
 
-    res = sdf_sub_smooth(res, sdf_shape(p, aSdfShape[i]), blendDist);
+    res = sdf_sub_smooth(res, sdf_shape(p, aSdfShape[iSubShape]), blendDist);
   }
 
   // intersection
-  for (int i = 0; i < numSdfShapes; ++i)
+  for (int iIntShape = 0; iIntShape < numSdfShapes; ++iIntShape)
   {
-    if (aSdfShape[i].data0.y != kSdfIntersection)
+    if (aSdfShape[iIntShape].data0.y != kSdfIntersection)
       continue;
 
-    res = sdf_int_smooth(res, sdf_shape(p, aSdfShape[i]), blendDist);
+    res = sdf_int_smooth(res, sdf_shape(p, aSdfShape[iIntShape]), blendDist);
   }
 
   return res;
 }
 
-float3 normal(float3 p)
+float3 heat_color(float t)
 {
-  return sdf_normal(p, map, 0.01f);
+  return
+    t < 0.5f 
+      ? lerp(heatColorCool.rgb, heatColorMedium.rgb, t / 0.5f) 
+      : lerp(heatColorMedium.rgb, heatColorHot.rgb, (t - 0.5f) / 0.5f);
 }
 
-float3 march(float3 ro, float3 rd)
+float4 march(int3 id, int mode)
 {
+  // TODO: move hard-coded material out of here
   const float3 kDiffuse = float3(1.0f, 0.65f, 0.05f);
   const float3 kAmbient = 0.1f * kDiffuse;
 
+  // set up ray
+  float2 uv = float2(id.xy) / screenSize;
+  float4 view = mul(cameraInvProj, float4(uv * 2.0f - 1.0f, 0.0f, 1.0f));
+  float3 ro = cameraPos.xyz;
+  float3 rd = normalize(mul(cameraToWorld, float4(view.xyz, 0.0f)).xyz);
+  
+  // params
   const int maxSteps = int(rayMarchParams.x);
   const float hitDist = rayMarchParams.y;
   const float maxDist = rayMarchParams.z;
   const float t = rayMarchParams.w;
 
+  // march ray
   float dist = 0.0f;
-  for (int i = 0; i < maxSteps; ++i)
+  for (int iStep = 0; iStep < maxSteps; ++iStep)
   {
     float3 p = ro + dist * rd;
-    float d = map(p);
+    float d = master_sdf(p);
 
+    // hit shape?
     if (d < hitDist)
     {
-      float3 n = normal(p);
-      float3 lightPos = ro + float3(0.0f * sin(2.0f * t), 0.0f * cos(2.0f * t) + 1.0f, 0.0f);
-      float3 lightDir = normalize(p - lightPos);
-      float3 shaded = max(pow(dot(n, -lightDir), 1.0f), kAmbient) * kDiffuse;
-      float3 fresnel = 0.3f * pow(saturate(1.0f - dot(n, -rd)), 2.0f);
-      float3 specular = 0.2f * pow(saturate(dot(n, -normalize(rd + lightDir))), 100.0f);
-      return shaded + fresnel + specular;
+      // TODO: why doesn't a switch statement work here?
+      if (mode == kModeMain)
+      {
+        float3 n = sdf_normal(p, master_sdf, 0.01f);
+        float3 lightPos = ro + float3(0.0f, 1.0f, 0.0f);
+        float3 lightDir = normalize(p - lightPos);
+        float3 shaded = max(pow(dot(n, -lightDir), 1.0f), kAmbient) * kDiffuse;
+        float3 fresnel = 0.3f * pow(saturate(1.0f - dot(n, -rd)), 2.0f);
+        float3 specular = 0.2f * pow(saturate(dot(n, -normalize(rd + lightDir))), 100.0f);
+
+        return float4(shaded + fresnel + specular, d);
+      }
+      else if (mode == kModeStepCount)
+      {
+        return iStep;
+      }
+      else if (mode == kModeShapeCount)
+      {
+        // TODO
+        return 0.0f;
+      }
     }
 
+    // hit background?
     if (dist > maxDist)
-      return backgroundColor.rgb;
+    {
+      if (mode == kModeMain)
+      {
+        return float4(backgroundColor.rgb, kInfinity);
+      }
+      else
+      {
+        return iStep;
+      }
+    }
 
     dist += d;
   }
 
-  return missColor.rgb;
+  if (mode != kModeMain)
+    return kInfinity;
+
+  return float4(missColor.rgb, kInfinity);
 }
 
-[numthreads(8, 8, 1)]
-void RayMarch(uint3 id : SV_DispatchThreadID)
+[numthreads(kTileSize, kTileSize, 1)]
+void Main(int3 id : SV_DispatchThreadID)
 {
-  float2 uv = float2(id.xy) / screenSize;
-  float4 view = mul(cameraInvProj, float4(uv * 2.0f - 1.0f, 0.0f, 1.0f));
+  if (any(id.xy > screenSize))
+    return;
 
-  float3 ro = cameraPos.xyz;
-  float3 rd = normalize(mul(cameraToWorld, float4(view.xyz, 0.0f)).xyz);
-  float3 col = march(ro, rd);
+  float4 res = march(id, kModeMain);
+  float3 col = res.rgb;
 
   dst[id.xy] = float4(col, 1.0f);
 }
+
+[numthreads(kTileSize, kTileSize, 1)]
+void StepCountPerThread(int3 id : SV_DispatchThreadID)
+{
+  if (any(id.xy >= screenSize))
+    return;
+  
+  float4 res = march(id, kModeStepCount);
+  float heat = res.x / maxCountBudget;
+  float3 col = heat_color(heat);
+
+  dst[id.xy] = lerp(dst[id.xy], float4(col, 1.0f), heatAlpha);
+}
+
+[numthreads(kTileSize, kTileSize, 1)]
+void StepCountPerTile(int3 id : SV_DispatchThreadID)
+{
+  float4 res = march(id, kModeStepCount);
+  float heat = res.x / maxCountBudget;
+  heatMap[id.xy] = heat;
+
+  AllMemoryBarrierWithGroupSync();
+
+  if (any(id.xy >= screenSize))
+    return;
+
+  int2 tileBaseId = kTileSize * (id.xy / kTileSize);
+  float maxHeat = 0.0f;
+  for (int i = 0; i < kTileSize; ++i)
+    for (int j = 0; j < kTileSize; ++j)
+      maxHeat = max(maxHeat, heatMap[tileBaseId + int2(i, j)]);
+
+  float3 col = heat_color(maxHeat);
+
+  dst[id.xy] = lerp(dst[id.xy], float4(col, 1.0f), heatAlpha);
+}
+
+[numthreads(kTileSize, kTileSize, 1)]
+void ShapeCountPerThread(int3 id : SV_DispatchThreadID)
+{
+  if (any(id.xy >= screenSize))
+    return;
+
+  float4 res = march(id, kModeShapeCount);
+  float heat = res.x / maxCountBudget;
+  float3 col = heat_color(heat);
+
+  dst[id.xy] = lerp(dst[id.xy], float4(col, 1.0f), heatAlpha);
+}
+
+[numthreads(kTileSize, kTileSize, 1)]
+void ShapeCountPerTile(int3 id : SV_DispatchThreadID)
+{
+  if (any(id.xy > screenSize))
+    return;
+
+  float4 res = march(id, kModeShapeCount);
+  float3 col = heat_color(res.x);
+
+  dst[id.xy] = lerp(dst[id.xy], float4(col, 1.0f), heatAlpha);
+}
+

@@ -10,8 +10,8 @@
 */
 /******************************************************************************/
 
-#ifndef RAY_MARCHING_SDF_DATA
-#define RAY_MARCHING_SDF_DATA
+#ifndef RAY_MARCHING_SDF_SHAPES
+#define RAY_MARCHING_SDF_SHAPES
 
 #include "Primitives.cginc"
 
@@ -23,6 +23,8 @@
 #define kSdfUnion        (0)
 #define kSdfSubtraction  (1)
 #define kSdfIntersection (3)
+
+#define kInfinity (1e16f)
 
 struct SdfShape
 {
@@ -50,7 +52,7 @@ float sdf_shape(float3 p, SdfShape s)
       return sdf_cylinder(p, s.data1.xyz, s.data2.xyz, s.data1.w);
   }
 
-  return 1e16f;
+  return kInfinity;
 }
 
 #endif

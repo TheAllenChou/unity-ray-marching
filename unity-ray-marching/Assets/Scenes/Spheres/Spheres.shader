@@ -1,4 +1,16 @@
-﻿Shader "Hidden/Spheres"
+﻿/******************************************************************************/
+/*
+  Project - Unity Ray Marching
+            https://github.com/TheAllenChou/unity-ray-marching
+
+  Author  - Ming-Lun "Allen" Chou
+  Web     - http://AllenChou.net
+  Twitter - @TheAllenChou
+
+*/
+/******************************************************************************/
+
+Shader "Hidden/Spheres"
 {
   Properties
   {

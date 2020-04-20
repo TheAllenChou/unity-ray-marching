@@ -50,6 +50,7 @@ public class PostProcessingBase : MonoBehaviour
   #if UNITY_EDITOR
   private void OnValidate()
   {
+    // reboot component copy to scene camera if changed in editor
     m_appliedToSceneCamera = false;
   }
 
