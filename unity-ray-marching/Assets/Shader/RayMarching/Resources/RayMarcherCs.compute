@@ -1,0 +1,28 @@
+﻿#pragma kernel RayMarch
+
+#include "../SDF/SDF.cginc"
+
+Texture2D<float4> src;
+RWTexture2D<float4> dst;
+
+float4x4 cameraInvProj;
+float4x4 cameraToWorld;
+float4 cameraPos;
+int2 screenSize; // width / height
+
+StructuredBuffer<SdfShape> aSdfShape;
+int numSdfShapes;
+
+float4 missColor;
+float4 rayMarchParams; // maxSteps, hitDist, maxDist, time
+
+[numthreads(8, 8, 1)]
+void RayMarch(uint3 id : SV_DispatchThreadID)
+{
+  const int maxSteps = int(rayMarchParams.x);
+  const float histDist = rayMarchParams.y;
+  const float maxDist = rayMarchParams.z;
+  const float t = rayMarchParams.w;
+
+  dst[id.xy] = missColor;
+}

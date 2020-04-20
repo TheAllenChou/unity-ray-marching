@@ -10,11 +10,12 @@
 */
 /******************************************************************************/
 
-#ifndef SDF
-#define SDF
+#ifndef RAY_MARCHING_SDF
+#define RAY_MARCHING_SDF
 
 #include "Primitives.cginc"
 #include "Operators.cginc"
 #include "Normal.cginc"
+#include "Data.cginc"
 
 #endif

@@ -121,7 +121,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &563885889
+--- !u!1 &409874792
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -129,10 +129,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 563885892}
-  - component: {fileID: 563885891}
-  - component: {fileID: 563885890}
-  - component: {fileID: 563885893}
+  - component: {fileID: 409874795}
+  - component: {fileID: 409874794}
+  - component: {fileID: 409874793}
+  - component: {fileID: 409874796}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -140,21 +140,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &563885890
+--- !u!81 &409874793
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 563885889}
+  m_GameObject: {fileID: 409874792}
   m_Enabled: 1
---- !u!20 &563885891
+--- !u!20 &409874794
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 563885889}
+  m_GameObject: {fileID: 409874792}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
@@ -191,36 +191,40 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &563885892
+--- !u!4 &409874795
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 563885889}
+  m_GameObject: {fileID: 409874792}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.35, y: 0, z: -1.06}
+  m_LocalPosition: {x: 0, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &563885893
+--- !u!114 &409874796
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 563885889}
+  m_GameObject: {fileID: 409874792}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 530b9ca09b259de41aecc7ea3e363242, type: 3}
+  m_Script: {fileID: 11500000, guid: b9b8e551071a17b47a40a329dd62c816, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ApplyToSceneCamera: 1
-  PostProcessingShader: {fileID: 4800000, guid: c81371aa634cf774fb5d9e4922721b23,
-    type: 3}
---- !u!1 &1815280917
+  Compute: {fileID: 7200000, guid: 047befc0d8dd6384fae6798d673887f4, type: 3}
+  MissColor: {r: 0, g: 0, b: 0, a: 0}
+  MaxRaySteps: 128
+  RayHitThreshold: 0.005
+  MaxRayDistance: 1000
+  Shapes: []
+--- !u!1 &1286793444
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -228,8 +232,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1815280919}
-  - component: {fileID: 1815280918}
+  - component: {fileID: 1286793446}
+  - component: {fileID: 1286793445}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -237,13 +241,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &1815280918
+--- !u!108 &1286793445
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1815280917}
+  m_GameObject: {fileID: 1286793444}
   m_Enabled: 1
   serializedVersion: 10
   m_Type: 1
@@ -298,13 +302,13 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_ShadowRadius: 0
   m_ShadowAngle: 0
---- !u!4 &1815280919
+--- !u!4 &1286793446
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1815280917}
+  m_GameObject: {fileID: 1286793444}
   m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}

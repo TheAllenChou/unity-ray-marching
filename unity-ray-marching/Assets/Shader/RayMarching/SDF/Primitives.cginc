@@ -13,7 +13,7 @@
 #ifndef RAY_MARCHING_SDF_PRIMITIVES
 #define RAY_MARCHING_SDF_PRIMITIVES
 
-#include "../Math/Quaternion.cginc"
+#include "../../Math/Quaternion.cginc"
 #include "Util.cginc"
 
 // c: center
@@ -35,8 +35,8 @@ float sdf_box(float3 p, float3 c, float3 h, float4 q = kQuatIdentity, float r = 
   return length(max(d, 0.0f)) + min(max_comp(d), 0.0f) - r;
 }
 
-// a: end A
-// b: end B
+// a: point A
+// b: point B
 // r: radius
 float sdf_capsule(float3 p, float3 a, float3 b, float r)
 {
@@ -46,10 +46,10 @@ float sdf_capsule(float3 p, float3 a, float3 b, float r)
   return length(p) - r;
 }
 
-// a: end A
-// b: end B
+// a: point A
+// b: point B
 // r: radius
-float sdf_cylinder(float3 p, float a, float b, float r)
+float sdf_cylinder(float3 p, float3 a, float3 b, float r)
 {
   float3 ab = b - a;
   float3 ap = p - a;
