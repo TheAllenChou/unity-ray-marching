@@ -16,7 +16,7 @@
 
       #include "UnityCG.cginc"
       #include "../../Shader/Math/Math.cginc"
-      #include "../../Shader/SDF/SDF.cginc"
+      #include "../../Shader/Ray Marching/SDF/SDF.cginc"
 
       struct appdata
       {
