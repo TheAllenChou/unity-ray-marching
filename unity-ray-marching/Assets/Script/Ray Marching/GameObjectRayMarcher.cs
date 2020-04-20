@@ -100,7 +100,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
         m_shapes.Dispose();
       }
 
-      m_shapes = new ComputeBuffer(numShapes, SdfShape.Stride);
+      m_shapes = new ComputeBuffer(Mathf.Max(1, numShapes), SdfShape.Stride);
     }
 
     m_shapes.SetData(sdfShapes);
