@@ -47,7 +47,7 @@ public class PostProcessingBase : MonoBehaviour
     #endif
   }
 
-#if UNITY_EDITOR
+  #if UNITY_EDITOR
   private void OnValidate()
   {
     m_appliedToSceneCamera = false;
