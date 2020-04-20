@@ -39,5 +39,7 @@ public class PostProcessingBlit : PostProcessingBase
         m_material.shader = PostProcessingShader;
       }
     }
+
+    Graphics.Blit(src, dst, m_material);
   }
 }

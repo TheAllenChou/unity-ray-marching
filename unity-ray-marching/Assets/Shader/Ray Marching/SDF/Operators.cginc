@@ -73,41 +73,6 @@ inline float sdf_uni_smooth(float a, float b, float h)
 // end: union
 
 
-// intersection
-//-----------------------------------------------------------------------------
-
-// raw intersection
-float sdf_int(float a, float b)
-{
-  return max(a, b);
-}
-
-// smooth quadratic polynomial intersection (C1 continuity, order-dependent concatenation)
-// k = 0.1f is a good default
-float sdf_int_quad(float a, float b, float k)
-{
-  float h = max(k - abs(a - b), 0.0f) / k;
-  return max(a, b) + h * h * k * (1.0f / 4.0f);
-}
-
-// smooth cubic polynomial intersection (C2 continuity, order-dependent concatenation)
-// k = 0.1f is a good default
-float sdf_int_cubic(float a, float b, float k)
-{
-  float h = max(k - abs(a - b), 0.0f) / k;
-  return max(a, b) + h * h * h * k * (1.0f / 6.0f);
-}
-
-// use cubic polynomial intersection as default
-inline float sdf_int_smooth(float a, float b, float h)
-{
-  return sdf_int_cubic(a, b, h);
-}
-
-//-----------------------------------------------------------------------------
-// end: intersection
-
-
 // subtraction
 //-----------------------------------------------------------------------------
 
@@ -141,6 +106,41 @@ inline float sdf_sub_smooth(float a, float b, float h)
 
 //-----------------------------------------------------------------------------
 // end: subtraction
+
+
+// intersection
+//-----------------------------------------------------------------------------
+
+// raw intersection
+float sdf_int(float a, float b)
+{
+  return max(a, b);
+}
+
+// smooth quadratic polynomial intersection (C1 continuity, order-dependent concatenation)
+// k = 0.1f is a good default
+float sdf_int_quad(float a, float b, float k)
+{
+  float h = max(k - abs(a - b), 0.0f) / k;
+  return max(a, b) + h * h * k * (1.0f / 4.0f);
+}
+
+// smooth cubic polynomial intersection (C2 continuity, order-dependent concatenation)
+// k = 0.1f is a good default
+float sdf_int_cubic(float a, float b, float k)
+{
+  float h = max(k - abs(a - b), 0.0f) / k;
+  return max(a, b) + h * h * h * k * (1.0f / 6.0f);
+}
+
+// use cubic polynomial intersection as default
+inline float sdf_int_smooth(float a, float b, float h)
+{
+  return sdf_int_cubic(a, b, h);
+}
+
+//-----------------------------------------------------------------------------
+// end: intersection
 
 
 #endif

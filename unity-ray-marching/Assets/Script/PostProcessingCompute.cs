@@ -63,7 +63,7 @@ public class PostProcessingCompute : PostProcessingBase
     {
       if (m_renderTarget != null)
       {
-        Destroy(m_renderTarget);
+        DestroyImmediate(m_renderTarget);
         m_renderTarget = null;
       }
 
