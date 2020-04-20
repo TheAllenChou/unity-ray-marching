@@ -14,9 +14,9 @@
 
 #include "Math.cginc"
 
-inline float3 unit_x() { return float3(1.0f, 0.0f, 0.0f); }
-inline float3 unit_y() { return float3(0.0f, 1.0f, 0.0f); }
-inline float3 unit_z() { return float3(0.0f, 0.0f, 1.0f); }
+#define kUnitX (float3(1.0f, 0.0f, 0.0f))
+#define kUnitY (float3(0.0f, 1.0f, 0.0f))
+#define kUnitZ (float3(0.0f, 0.0f, 1.0f))
 
 inline float3 normalize_safe(float3 v, float3 fallback)
 {
@@ -26,7 +26,7 @@ inline float3 normalize_safe(float3 v, float3 fallback)
 
 inline float3 normalize_safe(float3 v)
 {
-  return normalize_safe(v, unit_z());
+  return normalize_safe(v, kUnitZ);
 }
 
 inline float3 project_vec(float3 v, float3 onto)
@@ -38,6 +38,11 @@ inline float3 project_vec(float3 v, float3 onto)
 inline float3 project_plane(float3 v, float3 n)
 {
   return v - project_vec(v, n);
+}
+
+inline float3 limit_length(float3 v, float maxLen)
+{
+  return min(maxLen, length(v)) * normalize_safe(v, 0.0f);
 }
 
 inline float3 find_ortho(float3 v)
@@ -72,8 +77,8 @@ inline float3x3 mat_basis(float3 xAxis, float3 yAxis, float3 zAxis)
 
 inline float3x3 mat_look_at(float3 dir, float3 up)
 {
-  float3 zAxis = normalize_safe(dir, unit_z());
-  float3 xAxis = normalize_safe(cross(up, zAxis), unit_x());
+  float3 zAxis = normalize_safe(dir, kUnitZ);
+  float3 xAxis = normalize_safe(cross(up, zAxis), kUnitX);
   float3 yAxis = cross(zAxis, xAxis);
   return mat_basis(xAxis, yAxis, zAxis);
 }

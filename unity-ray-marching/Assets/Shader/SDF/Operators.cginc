@@ -10,8 +10,8 @@
 */
 /******************************************************************************/
 
-#ifndef SDF_OPERATORS
-#define SDF_OPERATORS
+#ifndef RAY_MARCHING_SDF_OPERATORS
+#define RAY_MARCHING_SDF_OPERATORS
 
 // http://www.iquilezles.org/www/articles/smin/smin.htm
 // http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm

@@ -1,4 +1,4 @@
-﻿Shader "Hidden/Sphere"
+﻿Shader "Hidden/Spheres"
 {
   Properties
   {
@@ -15,6 +15,7 @@
       #pragma fragment frag
 
       #include "UnityCG.cginc"
+      #include "../../Shader/Math/Math.cginc"
       #include "../../Shader/SDF/SDF.cginc"
 
       struct appdata
@@ -40,8 +41,8 @@
         const float t = _Time.y;
 
         const float a = sdf_sphere(p, kSphereCenter, kSphereRadius);
-        const float b = sdf_sphere(p + float3(2.0f * sin(2.0f * t), 0.0f, 0.0f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(sin(2.0f * t)) + 0.2f));
-        const float c = sdf_sphere(p + float3(0.0f, 2.0f * cos(2.0f * t), 0.0f), kSphereCenter, 0.7f * kSphereRadius * (0.8f * abs(cos(2.0f * t)) + 0.2f));
+        const float b = sdf_sphere(p, kSphereCenter - float3(2.0f * sin(2.0f * t), 0.0f, 0.0f), 0.7f * kSphereRadius * (0.8f * abs(sin(2.0f * t)) + 0.2f));
+        const float c = sdf_sphere(p, kSphereCenter - float3(0.0f, 2.0f * cos(2.0f * t), 0.0f), 0.7f * kSphereRadius * (0.8f * abs(cos(2.0f * t)) + 0.2f));
 
         float k = 0.5f;
         float res = sdf_uni_smooth(a, b, k);
@@ -53,13 +54,13 @@
 
       float3 normal(float3 p)
       {
-        return sdf_normal(p, map, 0.1f);
+        return sdf_normal(p, map, 0.01f);
       }
 
       float3 march(float3 ro, float3 rd)
       {
-        const int kMaxSteps = 128;
-        const float kHitDist = 0.02f;
+        const int kMaxSteps = 256;
+        const float kHitDist = 0.005f;
         const float kMaxDist = 1000.0f;
         const float3 kBackground = float3(0.0f, 0.07f, 0.15f);
         const float3 kDiffuse = float3(1.0f, 0.65f, 0.05f);

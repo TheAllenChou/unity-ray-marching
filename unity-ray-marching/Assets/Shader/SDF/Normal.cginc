@@ -10,8 +10,8 @@
 */
 /******************************************************************************/
 
-#ifndef SDF_NORMAL
-#define SDF_NORMAL
+#ifndef RAY_MARCHING_SDF_NORMAL
+#define RAY_MARCHING_SDF_NORMAL
 
 // http://iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
 

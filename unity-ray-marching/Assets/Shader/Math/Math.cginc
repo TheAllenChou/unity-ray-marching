@@ -16,7 +16,7 @@
 #define kTwoPi       (6.2831853071)
 #define kHalfPi      (1.5707963267)
 #define kThirdPi     (1.0471975511)
-#define kQuaterPi    (0.7853981633)
+#define kQuarterPi   (0.7853981633)
 #define kFifthPi     (0.6283185307)
 #define kSixthPi     (0.5235987755)
 
@@ -32,7 +32,7 @@
 #define kDeg2Rad     (0.0174532925)
 
 #include "Color.cginc"
-#include "Quaternion.cginc"
 #include "Vector.cginc"
+#include "Quaternion.cginc"
 
 #endif

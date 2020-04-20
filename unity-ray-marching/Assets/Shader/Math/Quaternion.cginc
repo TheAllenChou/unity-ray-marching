@@ -15,14 +15,16 @@
 #include "Math.cginc"
 #include "Vector.cginc"
 
-inline float4 quat_identity()
-{
-  return float4(0.0f, 0.0f, 0.0f, 1.0f);
-}
+#define kQuatIdentity (float4(0.0f, 0.0f, 0.0f, 1.0f))
 
 inline float4 quat_conj(float4 q)
 {
   return float4(-q.xyz, q.w);
+}
+
+inline float4 quat_inv(float4 q)
+{
+  return quat_conj(q);
 }
 
 // q must be unit quaternion
@@ -30,7 +32,7 @@ inline float4 quat_pow(float4 q, float p)
 {
   float r = length(q.xyz);
   if (r < kEpsilon)
-    return quat_identity();
+    return kQuatIdentity;
 
   float t = p * atan2(q.w, r);
 
@@ -58,7 +60,7 @@ inline float4 quat_from_to(float3 from, float3 to)
   float cc = dot(c, c);
 
   if (cc < kEpsilon)
-    return quat_identity();
+    return kQuatIdentity;
 
   float3 axis = c / sqrt(cc);
   float angle = acos(clamp(dot(from, to), -1.0f, 1.0f));
@@ -79,7 +81,7 @@ inline float3 quat_get_angle(float4 q)
   return 2.0f * acos(clamp(q.w, -1.0f, 1.0f));
 }
 
-inline float4 quat_concat(float4 q1, float4 q2)
+inline float4 quat_mul(float4 q1, float4 q2)
 {
   return 
     float4
@@ -98,11 +100,11 @@ inline float4 quat_mat(float3x3 m)
     return
       float4
       (
-      (m._m21 - m._m12) * sInv,
-        (m._m02 - m._m20) * sInv,
-        (m._m10 - m._m01) * sInv,
+        (m._m21 - m._m12) * sInv, 
+        (m._m02 - m._m20) * sInv, 
+        (m._m10 - m._m01) * sInv, 
         0.25 * s
-        );
+      );
   }
   else if ((m._m00 > m._m11) && (m._m00 > m._m22))
   {
@@ -111,11 +113,11 @@ inline float4 quat_mat(float3x3 m)
     return
       float4
       (
-        0.25f * s,
-        (m._m01 + m._m10) * sInv,
-        (m._m02 + m._m20) * sInv,
+        0.25f * s, 
+        (m._m01 + m._m10) * sInv, 
+        (m._m02 + m._m20) * sInv, 
         (m._m21 - m._m12) * sInv
-        );
+      );
   }
   else if (m._m11 > m._m22)
   {
@@ -124,11 +126,11 @@ inline float4 quat_mat(float3x3 m)
     return
       float4
       (
-      (m._m01 + m._m10) * sInv,
-        0.25 * s,
-        (m._m12 + m._m21) * sInv,
+        (m._m01 + m._m10) * sInv, 
+        0.25 * s, 
+        (m._m12 + m._m21) * sInv, 
         (m._m02 - m._m20) * sInv
-        );
+      );
   }
   else {
     float s = sqrt(1.0f + m._m22 - m._m00 - m._m11) * 2.0f;
@@ -136,17 +138,32 @@ inline float4 quat_mat(float3x3 m)
     return
       float4
       (
-      (m._m02 + m._m20) * sInv,
-        (m._m12 + m._m21) * sInv,
-        0.25 * s,
+        (m._m02 + m._m20) * sInv, 
+        (m._m12 + m._m21) * sInv, 
+        0.25 * s, 
         (m._m10 - m._m01) * sInv
-        );
+      );
   }
 }
 
 inline float4 quat_look_at(float3 dir, float3 up)
 {
   return quat_mat(mat_look_at(dir, up));
+}
+
+// order: ZXY
+inline float4 quat_euler(float3 rot)
+{
+  return
+    quat_mul
+    (
+      quat_mul
+      (
+        quat_axis_angle(kUnitY, rot.x),
+        quat_axis_angle(kUnitX, rot.y)
+      ),
+      quat_axis_angle(kUnitZ, rot.z)
+    );
 }
 
 inline float4 slerp(float4 a, float4 b, float t)
