@@ -52,10 +52,8 @@ public struct Aabb
   private static Aabb s_empty = new Aabb(float.MaxValue * Vector3.one, float.MinValue * Vector3.one);
   public static Aabb Empty { get { return s_empty; } }
 
-  public Vector3 Extents { get { return Max - Min; } }
-  public Vector3 HalfExtents { get { return 0.5f * Extents; } }
-  public float Area { get { return 2.0f * HalfArea; } }
-  public float HalfArea { get { Vector3 e = Extents; return e.x * e.y + e.y * e.z + e.z * e.x; } }
+  // half surface areas
+  public float Cost{ get { Vector3 e = Max - Min; return e.x * e.y + e.y * e.z + e.z * e.x; } }
 
   public Aabb(Vector3 min, Vector3 max)
   {
@@ -94,5 +92,66 @@ public struct Aabb
     Max.x += r.x;
     Max.y += r.y;
     Max.z += r.z;
+  }
+}
+
+public class AabbTree
+{
+  private static readonly float FatBoundsRadius = 0.5f;
+
+  public class Node
+  {
+    public RayMarchedShape Shape;
+    public Aabb Bounds;
+    public Aabb FatBounds;
+    public float Cost;
+    public Node ChildA;
+    public Node ChildB;
+
+    public Node()
+    {
+      Reset();
+    }
+
+    public void Reset()
+    {
+      Shape = null;
+      FatBounds = Aabb.Empty;
+      Cost = float.MinValue;
+      ChildA = null;
+      ChildB = null;
+    }
+  }
+
+  private int m_root = -1;
+
+  public Node CreateNode(RayMarchedShape Shape)
+  {
+    var node = Pool<Node>.Take();
+    node.Reset();
+
+    node.Shape = Shape;
+    node.Bounds = Shape.Bounds;
+    node.FatBounds = node.Bounds;
+    node.FatBounds.Expand(FatBoundsRadius);
+    node.Cost = node.Bounds.Cost;
+    
+    return node;
+  }
+
+  public void DestroyNode(Node node)
+  {
+    node.Reset();
+    Pool<Node>.Store(node);
+  }
+
+  public void UpdateNode(Node node)
+  {
+    // TODO
+  }
+
+  public void InsertNode(Node node)
+  {
+    // TODO
   }
 }

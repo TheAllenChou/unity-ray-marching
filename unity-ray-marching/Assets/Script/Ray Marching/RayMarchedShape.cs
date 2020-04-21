@@ -16,7 +16,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class RayMarchedShape : MonoBehaviour
 {
-  private static HashSet<RayMarchedShape> s_shapeComponents = new HashSet<RayMarchedShape>();
+  private static List<RayMarchedShape> s_shapeComponents = new List<RayMarchedShape>();
   private static List<SdfShape> s_sdfShapes = new List<SdfShape>();
   public static List<SdfShape> GetShapes()
   {
@@ -28,7 +28,7 @@ public class RayMarchedShape : MonoBehaviour
 
     foreach (var s in s_shapeComponents)
     {
-      var sdfShape = s.GetShape();
+      var sdfShape = s.Shape;
       sdfShape.Operator = (int) s.Operator;
       s_sdfShapes.Add(sdfShape);
     }
@@ -44,17 +44,22 @@ public class RayMarchedShape : MonoBehaviour
   }
 
   public OperatorEnum Operator = OperatorEnum.Union;
+  private int m_index = -1;
 
   private void OnEnable()
   {
+    m_index = s_shapeComponents.Count;
     s_shapeComponents.Add(this);
   }
 
   private void OnDisable()
   {
-    s_shapeComponents.Remove(this);
+    s_shapeComponents[m_index] = s_shapeComponents[s_shapeComponents.Count - 1];
+    s_shapeComponents.RemoveAt(s_shapeComponents.Count - 1);
+    m_index = -1;
   }
 
-  protected virtual SdfShape GetShape() { return SdfShape.Dummy(); }
+  protected virtual SdfShape Shape { get { return SdfShape.Dummy(); } }
+  public virtual Aabb Bounds { get { return Aabb.Empty; } }
 }
 
