@@ -51,8 +51,7 @@ public struct Aabb
   private static Aabb s_empty = new Aabb(float.MaxValue * Vector3.one, float.MinValue * Vector3.one);
   public static Aabb Empty { get { return s_empty; } }
 
-  // actually half surface areas, but it's all relative so it's fine
-  public float Area { get { Vector3 e = Max - Min; return e.x * e.y + e.y * e.z + e.z * e.x; } }
+  public float HalfArea { get { Vector3 e = Max - Min; return e.x * e.y + e.y * e.z + e.z * e.x; } }
 
   public Vector3 Center { get { return 0.5f * (Min + Max); } }
   public Vector3 HalfExtents { get { return 0.5f * (Max - Min); } }
@@ -441,7 +440,7 @@ public class AabbTree<T> where T : class
       float area = m_nodes[index].Bounds.Area;
 
       Aabb combinedBounds = Aabb.Union(m_nodes[index].Bounds, leafBounds);
-      float combinedArea = combinedBounds.Area;
+      float combinedArea = combinedBounds.HalfArea;
 
       // cost of creating a new parent for this node and the new leaf
       float cost = 2.0f * combinedArea;
@@ -455,14 +454,14 @@ public class AabbTree<T> where T : class
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childA].Bounds);
-        costA = bounds.Area + inheritanceCost;
+        costA = bounds.HalfArea + inheritanceCost;
       }
       else
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childA].Bounds);
         float oldArea = m_nodes[childA].Bounds.Area;
-        float newArea = bounds.Area;
+        float newArea = bounds.HalfArea;
         costA = (newArea - oldArea) + inheritanceCost;
       }
 
@@ -472,14 +471,14 @@ public class AabbTree<T> where T : class
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childB].Bounds);
-        costB = bounds.Area + inheritanceCost;
+        costB = bounds.HalfArea + inheritanceCost;
       }
       else
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childB].Bounds);
         float oldArea = m_nodes[childB].Bounds.Area;
-        float newArea = bounds.Area;
+        float newArea = bounds.HalfArea;
         costB = (newArea - oldArea) + inheritanceCost;
       }
 
