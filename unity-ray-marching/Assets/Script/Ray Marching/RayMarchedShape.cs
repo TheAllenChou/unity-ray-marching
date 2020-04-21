@@ -63,7 +63,7 @@ public class RayMarchedShape : MonoBehaviour
     m_index = s_shapeComponents.Count;
     s_shapeComponents.Add(this);
 
-    //m_iProxy = s_tree.CreateProxy(Bounds, this);
+    m_iProxy = s_tree.CreateProxy(Bounds, this);
   }
 
   private void OnDisable()
@@ -73,7 +73,7 @@ public class RayMarchedShape : MonoBehaviour
     s_shapeComponents.RemoveAt(s_shapeComponents.Count - 1);
     m_index = -1;
 
-    //s_tree.DestroyProxy(m_iProxy);
+    s_tree.DestroyProxy(m_iProxy);
     m_iProxy = AabbTree<RayMarchedShape>.Null;
   }
 

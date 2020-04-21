@@ -250,6 +250,7 @@ public class AabbTree<T> where T : class
 
     // take a node from the free list
     int node = m_freeList;
+    m_freeList = m_nodes[node].NextFree;
     m_nodes[node].Parent = Null;
     m_nodes[node].ChildA = Null;
     m_nodes[node].ChildB = Null;
