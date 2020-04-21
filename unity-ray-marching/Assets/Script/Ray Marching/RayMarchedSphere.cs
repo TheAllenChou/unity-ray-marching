@@ -14,7 +14,6 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class RayMarchedSphere : RayMarchedShape
 {
-  [Min(0.0f)]
   public float Radius = 0.5f;
 
   protected override SdfShape Shape
@@ -36,6 +35,13 @@ public class RayMarchedSphere : RayMarchedShape
           transform.position + Radius * Vector3.one
         );
     }
+  }
+
+  protected override void OnValidate()
+  {
+    base.OnValidate();
+
+    Radius = Mathf.Max(0.0f, Radius);
   }
 }
 

@@ -47,13 +47,15 @@ public class PostProcessingBase : MonoBehaviour
     #endif
   }
 
-  #if UNITY_EDITOR
-  private void OnValidate()
+  protected virtual void OnValidate()
   {
+    #if UNITY_EDITOR
     // reboot component copy to scene camera if changed in editor
     m_appliedToSceneCamera = false;
+    #endif
   }
 
+  #if UNITY_EDITOR
   private void UpdateSceneCamera()
   {
     if (m_attachedToSceneCamera)
@@ -68,7 +70,8 @@ public class PostProcessingBase : MonoBehaviour
     if (m_appliedToSceneCamera)
       return;
 
-    var camera = EditorWindow.GetWindow<SceneView>(false, "", false)?.camera;
+    var window = EditorWindow.GetWindow<SceneView>(false, "", false);
+    var camera = window ? window.camera : null;
     if (m_sceneCamera && m_sceneCamera != camera)
     {
       DisposeSceneCamera();

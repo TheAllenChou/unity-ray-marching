@@ -77,6 +77,8 @@ public class RayMarchedShape : MonoBehaviour
     m_iProxy = AabbTree<RayMarchedShape>.Null;
   }
 
+  protected virtual void OnValidate() { }
+
   protected virtual SdfShape Shape { get { return SdfShape.Dummy(); } }
   public virtual Aabb Bounds { get { return Aabb.Empty; } }
 }

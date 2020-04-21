@@ -28,15 +28,12 @@ public class GameObjectRayMarcher : PostProcessingCompute
   }
 
   [Header("Ray Marching")]  
-  [Min(1e-5f)]
   public float BlendDistance = 0.5f;
   public Color BackgroundColor = new Color(0.0f, 0.07f, 0.15f);
   public Color MissColor = new Color(1.0f, 0.0f, 0.0f);
   [Range(1, 256)]
   public int MaxRaySteps = 128;
-  [Min(1e-10f)]
   public float RayHitThreshold = 0.005f;
-  [Min(0.0f)]
   public float MaxRayDistance = 1000.0f;
 
   [Header("Debug")]
@@ -91,6 +88,15 @@ public class GameObjectRayMarcher : PostProcessingCompute
   private ShaderConstants m_const;
   private ComputeBuffer m_shapes;
   private RenderTexture m_heatMap;
+
+  protected override void OnValidate()
+  {
+    base.OnValidate();
+
+    BlendDistance = Mathf.Max(0.0f, BlendDistance);
+    RayHitThreshold = Mathf.Max(0.0f, RayHitThreshold);
+    MaxRayDistance = Mathf.Max(0.0f, MaxRayDistance);
+  }
 
   protected override void Init(ComputeShader compute)
   {
