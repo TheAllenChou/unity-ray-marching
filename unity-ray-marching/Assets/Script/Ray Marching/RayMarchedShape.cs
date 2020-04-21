@@ -55,6 +55,7 @@ public class RayMarchedShape : MonoBehaviour
   private void OnDisable()
   {
     s_shapeComponents[m_index] = s_shapeComponents[s_shapeComponents.Count - 1];
+    s_shapeComponents[m_index].m_index = m_index;
     s_shapeComponents.RemoveAt(s_shapeComponents.Count - 1);
     m_index = -1;
   }
