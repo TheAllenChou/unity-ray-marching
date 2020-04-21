@@ -437,7 +437,7 @@ public class AabbTree<T> where T : class
       int childA = m_nodes[index].ChildA;
       int childB = m_nodes[index].ChildB;
 
-      float area = m_nodes[index].Bounds.Area;
+      float area = m_nodes[index].Bounds.HalfArea;
 
       Aabb combinedBounds = Aabb.Union(m_nodes[index].Bounds, leafBounds);
       float combinedArea = combinedBounds.HalfArea;
@@ -460,7 +460,7 @@ public class AabbTree<T> where T : class
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childA].Bounds);
-        float oldArea = m_nodes[childA].Bounds.Area;
+        float oldArea = m_nodes[childA].Bounds.HalfArea;
         float newArea = bounds.HalfArea;
         costA = (newArea - oldArea) + inheritanceCost;
       }
@@ -477,7 +477,7 @@ public class AabbTree<T> where T : class
       {
         Aabb bounds;
         bounds = Aabb.Union(leafBounds, m_nodes[childB].Bounds);
-        float oldArea = m_nodes[childB].Bounds.Area;
+        float oldArea = m_nodes[childB].Bounds.HalfArea;
         float newArea = bounds.HalfArea;
         costB = (newArea - oldArea) + inheritanceCost;
       }
