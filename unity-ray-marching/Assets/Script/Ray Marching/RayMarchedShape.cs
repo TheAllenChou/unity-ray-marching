@@ -39,12 +39,22 @@ public class RayMarchedShape : MonoBehaviour
 
   public static void FillBounds(ComputeBuffer buffer)
   {
+    SyncBounds();
+    s_tree.Fill(buffer);
+  }
+
+  public static void SyncBounds()
+  {
     foreach (var s in s_shapeComponents)
     {
       s_tree.UpdateProxy(s.m_iProxy, s.Bounds);
     }
+  }
 
-    s_tree.Fill(buffer);
+  public static void DrawBoundingVolumeHierarchyGizmos(int isolateDepth = -1)
+  {
+    SyncBounds();
+    s_tree.DrwaGizmos(isolateDepth);
   }
 
   public enum OperatorEnum

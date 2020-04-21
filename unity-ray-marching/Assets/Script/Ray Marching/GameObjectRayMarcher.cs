@@ -18,7 +18,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
 {
   private static readonly int TileSize = 8;
 
-  public enum DebugModeEnum
+  public enum HeatMapMode
   {
     None, 
     StepCountPerThread, 
@@ -37,10 +37,12 @@ public class GameObjectRayMarcher : PostProcessingCompute
   public float MaxRayDistance = 1000.0f;
 
   [Header("Debug")]
-  public DebugModeEnum DebugMode = DebugModeEnum.None;
-  [ConditionalField("DebugMode", DebugModeEnum.StepCountPerThread, DebugModeEnum.StepCountPerTile, Min = 1, Max = 256)]
+  public bool DrawBoundingVolumes = false;
+  public int IsolateBoundingVolumeDepth = -1;
+  public HeatMapMode HeatMap = HeatMapMode.None;
+  [ConditionalField("DebugMode", HeatMapMode.StepCountPerThread, HeatMapMode.StepCountPerTile, Min = 1, Max = 256)]
   public int MaxStepCountBudget = 128;
-  [ConditionalField("DebugMode", DebugModeEnum.ShapeCountPerThread, DebugModeEnum.ShapeCountPerTile, Min = 1, Max = 256)]
+  [ConditionalField("DebugMode", HeatMapMode.ShapeCountPerThread, HeatMapMode.ShapeCountPerTile, Min = 1, Max = 256)]
   public int MaxShapeCountBudget = 64;
   public Color HeatColorCool = new Color(0.0f, 1.0f, 0.0f);
   public Color HeatColorMedium = new Color(1.0f, 1.0f, 0.0f);
@@ -96,6 +98,8 @@ public class GameObjectRayMarcher : PostProcessingCompute
     BlendDistance = Mathf.Max(0.0f, BlendDistance);
     RayHitThreshold = Mathf.Max(0.0f, RayHitThreshold);
     MaxRayDistance = Mathf.Max(0.0f, MaxRayDistance);
+
+    IsolateBoundingVolumeDepth = Mathf.Max(-1, IsolateBoundingVolumeDepth);
   }
 
   protected override void Init(ComputeShader compute)
@@ -232,27 +236,35 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
     compute.Dispatch(m_const.MainKernel, threadGroupSizeX, threadGroupSizeY, 1);
 
-    switch (DebugMode)
+    switch (HeatMap)
     {
-      case DebugModeEnum.StepCountPerThread:
+      case HeatMapMode.StepCountPerThread:
         compute.SetInt(m_const.MaxCountBudget, MaxStepCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case DebugModeEnum.StepCountPerTile:
+      case HeatMapMode.StepCountPerTile:
         compute.SetInt(m_const.MaxCountBudget, MaxStepCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case DebugModeEnum.ShapeCountPerThread:
+      case HeatMapMode.ShapeCountPerThread:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case DebugModeEnum.ShapeCountPerTile:
+      case HeatMapMode.ShapeCountPerTile:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
         break;
+    }
+  }
+
+  private void OnDrawGizmos()
+  {
+    if (DrawBoundingVolumes)
+    {
+      RayMarchedShape.DrawBoundingVolumeHierarchyGizmos(IsolateBoundingVolumeDepth);
     }
   }
 }

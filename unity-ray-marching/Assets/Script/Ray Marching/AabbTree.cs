@@ -54,6 +54,7 @@ public struct Aabb
   public float HalfArea { get { Vector3 e = Max - Min; return e.x * e.y + e.y * e.z + e.z * e.x; } }
 
   public Vector3 Center { get { return 0.5f * (Min + Max); } }
+  public Vector3 Extents { get { return Max - Min; } }
   public Vector3 HalfExtents { get { return 0.5f * (Max - Min); } }
 
   public Aabb(Vector3 min, Vector3 max)
@@ -171,7 +172,7 @@ public class AabbTree<T> where T : class
 
   private static readonly float FatBoundsRadius = 0.5f;
 
-  private struct Node
+  public struct Node
   {
     public Aabb Bounds; // fat AABB
 
@@ -719,5 +720,56 @@ public class AabbTree<T> where T : class
     return a;
   }
 
+  public void DrwaGizmos(int isolateDepth = -1)
+  {
+    #if UNITY_EDITOR
+    Color prevColor = Gizmos.color;
 
+    for (int i = 0; i < m_nodes.Length; ++i)
+    {
+      if (m_nodes[i].Height < 0)
+        continue;
+
+      Aabb bounds = m_nodes[i].Bounds;
+
+      if (isolateDepth >= 0)
+      {
+        if (m_nodes[i].Height < isolateDepth - 1 && m_nodes[i].Height > isolateDepth)
+          continue;
+        
+        Gizmos.color =
+          m_nodes[i].Height == isolateDepth - 1 
+            ? Color.gray 
+            : Color.white;
+
+        // parent above isolate depth?
+        if (m_nodes[i].Height == isolateDepth - 1)
+        {
+          Gizmos.DrawWireCube(bounds.Center, bounds.Extents);
+
+          int childA = m_nodes[i].ChildA;
+          if (childA != Null)
+          {
+            Aabb childBoundsA = m_nodes[childA].Bounds;
+            Gizmos.DrawLine(bounds.Min, childBoundsA.Min);
+          }
+
+          int childB = m_nodes[i].ChildB;
+          if (childB != Null)
+          {
+            Aabb childBoundsB = m_nodes[childB].Bounds;
+            Gizmos.DrawLine(bounds.Min, childBoundsB.Min);
+          }
+
+          continue;
+        }
+      }
+      
+      Gizmos.color = Color.white;
+      Gizmos.DrawWireCube(bounds.Center, bounds.Extents);
+    }
+
+    Gizmos.color = prevColor;
+    #endif
+  }
 }
