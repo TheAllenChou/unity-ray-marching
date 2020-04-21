@@ -200,12 +200,32 @@ public class AabbTree<T> where T : class
     public int Padding;
   }
 
-  private Node[] m_nodes = new Node[16];
-  private NodePod[] m_pods = new NodePod[16];
-  private int m_numNodes = 0;
-  private int m_freeList = Null;
-  private int m_root = Null;
-  private Stack<int> m_stack = new Stack<int>(256);
+  private Node[] m_nodes;
+  private NodePod[] m_pods;
+  private int m_numNodes;
+  private int m_freeList;
+  private int m_root;
+  private Stack<int> m_stack;
+
+  public AabbTree()
+  {
+    m_nodes = new Node[16];
+    m_pods = new NodePod[16];
+    m_numNodes = 0;
+    m_freeList = Null;
+    m_root = Null;
+    m_stack = new Stack<int>(256);
+
+    // build a linked list for the free list
+    for (int i = 0; i < m_nodes.Length - 1; ++i)
+    {
+      m_nodes[i].NextFree = i + 1;
+      m_nodes[i].Height = -1;
+    }
+    m_nodes[m_nodes.Length - 1].NextFree = Null;
+    m_nodes[m_nodes.Length - 1].Height = -1;
+    m_freeList = 0;
+  }
 
   public void Fill(ComputeBuffer buffer)
   {
@@ -256,6 +276,7 @@ public class AabbTree<T> where T : class
     m_nodes[node].ChildA = Null;
     m_nodes[node].ChildB = Null;
     m_nodes[node].Height = 0;
+    m_nodes[node].NextFree = -1;
     m_nodes[node].UserData = null;
     m_nodes[node].Moved = false;
     ++m_numNodes;
@@ -722,8 +743,15 @@ public class AabbTree<T> where T : class
 
   public void DrwaGizmos(int isolateDepth = -1)
   {
+    // TODO height is inverted depth
+
     #if UNITY_EDITOR
+    if (m_root == Null)
+      return;
+
     Color prevColor = Gizmos.color;
+
+    int isolateHeight = m_nodes[m_root].Height + isolateDepth;
 
     for (int i = 0; i < m_nodes.Length; ++i)
     {
@@ -732,18 +760,18 @@ public class AabbTree<T> where T : class
 
       Aabb bounds = m_nodes[i].Bounds;
 
-      if (isolateDepth >= 0)
+      if (isolateHeight >= 0)
       {
-        if (m_nodes[i].Height < isolateDepth - 1 && m_nodes[i].Height > isolateDepth)
+        if (m_nodes[i].Height < isolateHeight - 1 && m_nodes[i].Height > isolateHeight)
           continue;
         
         Gizmos.color =
-          m_nodes[i].Height == isolateDepth - 1 
+          m_nodes[i].Height == isolateHeight - 1 
             ? Color.gray 
             : Color.white;
 
         // parent above isolate depth?
-        if (m_nodes[i].Height == isolateDepth - 1)
+        if (m_nodes[i].Height == isolateHeight - 1)
         {
           Gizmos.DrawWireCube(bounds.Center, bounds.Extents);
 
