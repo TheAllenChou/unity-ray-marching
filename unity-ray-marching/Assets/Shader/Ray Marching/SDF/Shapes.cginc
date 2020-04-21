@@ -37,20 +37,16 @@ struct SdfShape
 
 float sdf_shape(float3 p, SdfShape s)
 {
-  switch (s.data0.x)
-  {
-    case kSdfSphere:
-      return sdf_sphere(p, s.data1.xyz, s.data1.w);
-
-    case kSdfBox:
-      return sdf_box(p, s.data1.xyz, s.data2.xyz, s.data3, s.data1.w);
-
-    case kSdfCapsule:
-      return sdf_capsule(p, s.data1.xyz, s.data2.xyz, s.data1.w);
-
-    case kSdfCylinder:
-      return sdf_cylinder(p, s.data1.xyz, s.data2.xyz, s.data1.w);
-  }
+  // give ma a break DX11 warnings >:(
+  // y u no like a switch statement here?
+  if (s.data0.x == kSdfSphere)
+    return sdf_sphere(p, s.data1.xyz, s.data1.w);
+  else if (s.data0.x == kSdfBox)
+    return sdf_box(p, s.data1.xyz, s.data2.xyz, s.data3, s.data1.w);
+  else if (s.data0.x == kSdfCapsule)
+    return sdf_capsule(p, s.data1.xyz, s.data2.xyz, s.data1.w);
+  else if (s.data0.x == kSdfCylinder)
+    return sdf_cylinder(p, s.data1.xyz, s.data2.xyz, s.data1.w);
 
   return kInfinity;
 }

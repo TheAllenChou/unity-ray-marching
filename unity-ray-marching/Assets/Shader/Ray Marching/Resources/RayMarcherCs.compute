@@ -205,7 +205,7 @@ void StepCountPerTile(int3 id : SV_DispatchThreadID)
   if (any(id.xy >= screenSize))
     return;
 
-  int2 tileBaseId = kTileSize * (id.xy / kTileSize);
+  int2 tileBaseId = kTileSize * (uint2(id.xy) / kTileSize);
   float maxHeat = 0.0f;
   for (int i = 0; i < kTileSize; ++i)
     for (int j = 0; j < kTileSize; ++j)
