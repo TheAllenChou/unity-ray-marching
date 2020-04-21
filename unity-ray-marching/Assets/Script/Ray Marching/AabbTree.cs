@@ -9,8 +9,6 @@
 */
 /******************************************************************************/
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -190,11 +188,45 @@ public class AabbTree<T> where T : class
     public bool IsLeaf { get { return ChildA == Null; } }
   }
 
+  public struct NodePod
+  {
+    public static readonly int Stride = Aabb.Stride + 4 * sizeof(int);
+
+    public Aabb Bounds;
+
+    public int Parent;
+    public int ChildA;
+    public int ChildB;
+    public int Padding;
+  }
+
   private Node[] m_nodes = new Node[16];
+  private NodePod[] m_pods = new NodePod[16];
   private int m_numNodes = 0;
   private int m_freeList = Null;
   private int m_root = Null;
   private Stack<int> m_stack = new Stack<int>(256);
+
+  public void Fill(ComputeBuffer buffer)
+  {
+    if (m_pods.Length != m_nodes.Length)
+      m_pods = new NodePod[m_nodes.Length];
+
+    for (int i = 0; i < m_nodes.Length; ++i)
+    {
+      if (m_nodes[i].Height < 0)
+        continue;
+
+      // only need to fill the bounds of allocated nodes
+      m_pods[i].Bounds = m_nodes[i].Bounds;
+      m_pods[i].Parent = m_nodes[i].Parent;
+      m_pods[i].ChildA = m_nodes[i].ChildA;
+      m_pods[i].ChildB = m_nodes[i].ChildB;
+      m_pods[i].Padding = 0;
+    }
+
+    buffer.SetData(m_pods);
+  }
 
   private int AllocateNode()
   {
