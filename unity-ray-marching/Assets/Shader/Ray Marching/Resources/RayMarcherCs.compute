@@ -14,7 +14,7 @@
 #include "AabbTree.cginc"
 
 
-// constants
+// constants & buffers
 //-----------------------------------------------------------------------------
 
 #define kTileSize (8)
@@ -31,7 +31,7 @@ float4 cameraPos;
 int2 screenSize; // width / height
 
 StructuredBuffer<SdfShape> aSdfShape;
-int numSdfShapes = 0;
+int numSdfShapes;
 RWTexture2D<float4> tempBuffer; // scratch memory
 
 float4 rayMarchParams; // maxSteps, hitDist, maxDist, time
@@ -47,11 +47,12 @@ float heatAlpha;
 
 int maxCountBudget;
 
+bool useAabbTree;
 StructuredBuffer<AabbNode> aabbTree;
 int aabbTreeRoot;
 
 //-----------------------------------------------------------------------------
-// end: constants
+// end: constants & buffers
 
 
 // ray marching
@@ -62,7 +63,7 @@ int aabbTreeRoot;
 #define kModeStepCount  (1)
 #define kModeShapeCount (2)
 
-float ground_truth_sdf(float3 p, int3 id)
+float ground_truth_sdf(float3 p)
 {
   if (numSdfShapes <= 0)
     return kInfinity;
@@ -158,9 +159,16 @@ float4 march(int3 id, int mode)
   {
     const float3 p = ro + dist * rd;
 
-    // const float d = ground_truth_sdf(p);
+    // sample SDf
     float d = kInfinity;
-    SDF_NEAR_SHAPES(d, p, aiNearShape, numNearShapes);
+    if (useAabbTree)
+    {
+      SDF_NEAR_SHAPES(d, p, aiNearShape, numNearShapes);
+    }
+    else
+    {
+      d = ground_truth_sdf(p);
+    }
 
     // hit shape?
     if (d < hitDist)
@@ -172,20 +180,28 @@ float4 march(int3 id, int mode)
         // http://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
         const float h = 0.01f;
 
-        //const float3 n = sdf_normal(p, ground_truth_sdf, h);
-        float n0, n1, n2, n3;
-        SDF_NEAR_SHAPES(n0, p + float3( (h), -(h), -(h)), aiNearShape, numNearShapes);
-        SDF_NEAR_SHAPES(n1, p + float3(-(h), -(h),  (h)), aiNearShape, numNearShapes);
-        SDF_NEAR_SHAPES(n2, p + float3(-(h),  (h), -(h)), aiNearShape, numNearShapes);
-        SDF_NEAR_SHAPES(n3, p + float3( (h),  (h),  (h)), aiNearShape, numNearShapes);
-        const float3 n = 
-          normalize
-          (
-              float3( 1.0f, -1.0f, -1.0f) * n0 
-            + float3(-1.0f, -1.0f,  1.0f) * n1 
-            + float3(-1.0f,  1.0f, -1.0f) * n2 
-            + float3( 1.0f,  1.0f,  1.0f) * n3
-          );
+        // compute differential normal
+        float3 n = 0.0f;
+        if (useAabbTree)
+        {
+          float n0, n1, n2, n3;
+          SDF_NEAR_SHAPES(n0, p + float3( (h), -(h), -(h)), aiNearShape, numNearShapes);
+          SDF_NEAR_SHAPES(n1, p + float3(-(h), -(h),  (h)), aiNearShape, numNearShapes);
+          SDF_NEAR_SHAPES(n2, p + float3(-(h),  (h), -(h)), aiNearShape, numNearShapes);
+          SDF_NEAR_SHAPES(n3, p + float3( (h),  (h),  (h)), aiNearShape, numNearShapes);
+          n = 
+            normalize
+            (
+                float3( 1.0f, -1.0f, -1.0f) * n0 
+              + float3(-1.0f, -1.0f,  1.0f) * n1 
+              + float3(-1.0f,  1.0f, -1.0f) * n2 
+              + float3( 1.0f,  1.0f,  1.0f) * n3
+            );
+        }
+        else
+        {
+          n = sdf_normal(p, ground_truth_sdf, h);
+        }
          
         const float3 lightPos = ro + float3(0.0f, 1.0f, 0.0f);
         const float3 lightDir = normalize(p - lightPos);
@@ -201,8 +217,7 @@ float4 march(int3 id, int mode)
       }
       else if (mode == kModeShapeCount)
       {
-        // TODO
-        return 0.0f;
+        return useAabbTree ? numNearShapes : numSdfShapes;
       }
     }
 
@@ -213,9 +228,13 @@ float4 march(int3 id, int mode)
       {
         return float4(backgroundColor.rgb, kInfinity);
       }
-      else
+      else if (mode == kModeStepCount)
       {
         return iStep;
+      }
+      else if (mode == kModeShapeCount)
+      {
+        return useAabbTree ? numNearShapes : numSdfShapes;
       }
     }
 
@@ -305,11 +324,22 @@ void ShapeCountPerThread(int3 id : SV_DispatchThreadID)
 [numthreads(kTileSize, kTileSize, 1)]
 void ShapeCountPerTile(int3 id : SV_DispatchThreadID)
 {
-  if (any(id.xy > screenSize))
+  float4 res = march(id, kModeShapeCount);
+  float heat = res.x / maxCountBudget;
+  heatMap[id.xy] = heat;
+
+  AllMemoryBarrierWithGroupSync();
+
+  if (any(id.xy >= screenSize))
     return;
 
-  float4 res = march(id, kModeShapeCount);
-  float3 col = heat_color(res.x);
+  int2 tileBaseId = kTileSize * (uint2(id.xy) / kTileSize);
+  float maxHeat = 0.0f;
+  for (int i = 0; i < kTileSize; ++i)
+    for (int j = 0; j < kTileSize; ++j)
+      maxHeat = max(maxHeat, heatMap[tileBaseId + int2(i, j)]);
+
+  float3 col = heat_color(maxHeat);
 
   dst[id.xy] = lerp(dst[id.xy], float4(col, 1.0f), heatAlpha);
 }

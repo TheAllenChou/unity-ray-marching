@@ -42,6 +42,8 @@ public class GameObjectRayMarcher : PostProcessingCompute
   public float MaxRayDistance = 1000.0f;
 
   [Header("Bounding Volume Hierarchy")]
+  [ConditionalField(Label = "Use BVH")]
+  public bool UseBoundingVolumes = true;
   public bool DrawBoundingVolumes = false;
   [ConditionalField(Label = "  Isolate BVH Depth", Min = -1, Max = 16)]
   public int IsolateBoundingVolumeDepth = -1;
@@ -53,9 +55,9 @@ public class GameObjectRayMarcher : PostProcessingCompute
   [Header("Heat Map")]
   public HeatMapModeEnum HeatMapMode = HeatMapModeEnum.None;
   [ConditionalField("HeatMapMode", HeatMapModeEnum.StepCountPerThread, HeatMapModeEnum.StepCountPerTile, Min = 1, Max = 256)]
-  public int MaxStepCountBudget = 128;
-  [ConditionalField("HeatMapMode", HeatMapModeEnum.ShapeCountPerThread, HeatMapModeEnum.ShapeCountPerTile, Min = 1, Max = 256)]
-  public int MaxShapeCountBudget = 64;
+  public int MaxStepCountBudget = 64;
+  [ConditionalField("HeatMapMode", HeatMapModeEnum.ShapeCountPerThread, HeatMapModeEnum.ShapeCountPerTile, Min = 1, Max = 64)]
+  public int MaxShapeCountBudget = 16;
   public Color HeatColorCool = new Color(0.0f, 1.0f, 0.0f);
   public Color HeatColorMedium = new Color(1.0f, 1.0f, 0.0f);
   public Color HeatColorHot = new Color(1.0f, 0.0f, 0.0f);
@@ -89,6 +91,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
     public int BackgroundColor;
     public int MissColor;
 
+    public int UseAabbTree;
     public int AabbTree;
     public int AabbTreeRoot;
 
@@ -155,6 +158,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
     m_const.BackgroundColor = Shader.PropertyToID("backgroundColor");
     m_const.MissColor = Shader.PropertyToID("missColor");
 
+    m_const.UseAabbTree = Shader.PropertyToID("useAabbTree");
     m_const.AabbTree = Shader.PropertyToID("aabbTree");
     m_const.AabbTreeRoot = Shader.PropertyToID("aabbTreeRoot");
 
@@ -280,6 +284,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
     compute.SetVector(m_const.BackgroundColor, new Vector4(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, BackgroundColor.a));
     compute.SetVector(m_const.MissColor, new Vector4(MissColor.r, MissColor.g, MissColor.b, MissColor.a));
 
+    compute.SetBool(m_const.UseAabbTree, UseBoundingVolumes);
     compute.SetInt(m_const.AabbTreeRoot, RayMarchedShape.AabbTreeRoot);
 
     compute.SetVector(m_const.HeatColorCool, new Vector4(HeatColorCool.r, HeatColorCool.g, HeatColorCool.b, HeatColorCool.a));
@@ -311,12 +316,12 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
       case HeatMapModeEnum.ShapeCountPerThread:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
-        compute.Dispatch(m_const.StepCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
+        compute.Dispatch(m_const.ShapeCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
       case HeatMapModeEnum.ShapeCountPerTile:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
-        compute.Dispatch(m_const.StepCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
+        compute.Dispatch(m_const.ShapeCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
         break;
     }
   }
