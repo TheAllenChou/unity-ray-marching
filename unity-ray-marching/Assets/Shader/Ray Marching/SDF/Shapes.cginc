@@ -24,7 +24,8 @@
 #define kSdfSubtraction  (1)
 #define kSdfIntersection (3)
 
-#define kInfinity (1e16f)
+#define kFltMax   (1e32f)
+#define kInfinity kFltMax
 
 struct SdfShape
 {

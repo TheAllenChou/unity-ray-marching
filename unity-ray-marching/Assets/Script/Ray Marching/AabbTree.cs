@@ -12,13 +12,21 @@
 using System.Collections.Generic;
 
 using UnityEngine;
+using System.Runtime.InteropServices;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+[StructLayout(LayoutKind.Sequential, Pack = 0)]
 public struct Aabb
 {
-  public static readonly int Stride = 6 * sizeof(float);
+  public static readonly int Stride = 8 * sizeof(float);
 
   public Vector3 Min;
+  public float Padding0;
   public Vector3 Max;
+  public float Padding1;
 
   public static Aabb Union(Aabb a, Aabb b)
   {
@@ -33,9 +41,9 @@ public struct Aabb
         ), 
         new Vector3
         (
-          Mathf.Min(a.Max.x, b.Max.x), 
-          Mathf.Min(a.Max.y, b.Max.y), 
-          Mathf.Min(a.Max.z, b.Max.z)
+          Mathf.Max(a.Max.x, b.Max.x), 
+          Mathf.Max(a.Max.y, b.Max.y), 
+          Mathf.Max(a.Max.z, b.Max.z)
         )
       );
   }
@@ -43,9 +51,9 @@ public struct Aabb
   public static bool Intersects(Aabb a, Aabb b)
   {
     return 
-         a.Min.x < b.Max.x && a.Max.x > b.Min.x 
-      && a.Min.y < b.Max.y && a.Max.y > b.Min.y 
-      && a.Min.z < b.Max.z && a.Max.z > b.Min.z;
+         a.Min.x <= b.Max.x && a.Max.x >= b.Min.x 
+      && a.Min.y <= b.Max.y && a.Max.y >= b.Min.y 
+      && a.Min.z <= b.Max.z && a.Max.z >= b.Min.z;
   }
 
   private static Aabb s_empty = new Aabb(float.MaxValue * Vector3.one, float.MinValue * Vector3.one);
@@ -61,6 +69,7 @@ public struct Aabb
   {
     Min = min;
     Max = max;
+    Padding0 = Padding1 = 0.0f;
   }
 
   public void Include(Vector3 p)
@@ -124,10 +133,10 @@ public struct Aabb
       float minComp = VectorUtil.GetComopnent(Min, i);
       float maxComp = VectorUtil.GetComopnent(Max, i);
 
-      if (absDComp< float.Epsilon)
+      if (absDComp < float.Epsilon)
       {
         // parallel?
-        if (fromComp < minComp || minComp < fromComp)
+        if (fromComp < minComp || maxComp < fromComp)
           return float.MinValue;
       }
       else
@@ -166,11 +175,10 @@ public struct Aabb
 public class AabbTree<T> where T : class
 {
   public static readonly int Null = -1;
+  public static readonly float FatBoundsRadius = 0.25f;
 
   public delegate bool QueryCallbcak(T userData);
   public delegate float RayCastCallback(Vector3 from, Vector3 to, T userData);
-
-  private static readonly float FatBoundsRadius = 0.5f;
 
   public struct Node
   {
@@ -186,8 +194,10 @@ public class AabbTree<T> where T : class
     public bool Moved;
 
     public bool IsLeaf { get { return ChildA == Null; } }
+    public bool IsFree { get { return Height < 0; } }
   }
 
+  [StructLayout(LayoutKind.Sequential, Pack = 0)]
   public struct NodePod
   {
     public static readonly int Stride = Aabb.Stride + 4 * sizeof(int);
@@ -197,7 +207,7 @@ public class AabbTree<T> where T : class
     public int Parent;
     public int ChildA;
     public int ChildB;
-    public int Padding;
+    public int UserDataIndex;
   }
 
   private Node[] m_nodes;
@@ -227,25 +237,40 @@ public class AabbTree<T> where T : class
     m_freeList = 0;
   }
 
-  public void Fill(ComputeBuffer buffer)
+  public int Capacity { get { return m_nodes.Length; } }
+  public int Root { get { return m_root; } }
+
+  public int Fill(ComputeBuffer buffer, float aabbTightenRadius = 0.0f)
   {
+    if (m_root == Null)
+      return Null;
+
     if (m_pods.Length != m_nodes.Length)
       m_pods = new NodePod[m_nodes.Length];
 
     for (int i = 0; i < m_nodes.Length; ++i)
     {
-      if (m_nodes[i].Height < 0)
+      if (m_nodes[i].IsFree)
         continue;
 
-      // only need to fill the bounds of allocated nodes
-      m_pods[i].Bounds = m_nodes[i].Bounds;
+      Aabb tightBounds = m_nodes[i].Bounds;
+      tightBounds.Expand(-aabbTightenRadius);
+
+      m_pods[i].Bounds = tightBounds;
       m_pods[i].Parent = m_nodes[i].Parent;
       m_pods[i].ChildA = m_nodes[i].ChildA;
       m_pods[i].ChildB = m_nodes[i].ChildB;
-      m_pods[i].Padding = 0;
+      
+      var shape = m_nodes[i].UserData as RayMarchedShape;
+      if (shape != null)
+      {
+        m_pods[i].UserDataIndex = shape.ShapeIndex;
+      }
     }
 
     buffer.SetData(m_pods);
+
+    return m_root;
   }
 
   private int AllocateNode()
@@ -345,7 +370,9 @@ public class AabbTree<T> where T : class
       if (index == Null)
         continue;
 
-      if (!Aabb.Intersects(bounds, m_nodes[index].Bounds))
+      Aabb tightBounds = m_nodes[index].Bounds;
+      tightBounds.Expand(-FatBoundsRadius);
+      if (!Aabb.Intersects(bounds, tightBounds))
         continue;
 
       if (m_nodes[index].IsLeaf)
@@ -378,7 +405,7 @@ public class AabbTree<T> where T : class
     float maxFraction = 1.0f;
 
     // v is perpendicular to the segment.
-    Vector3 v = VectorUtil.FindOrthogonal(r);
+    Vector3 v = VectorUtil.FindOrthogonal(r).normalized;
     Vector3 absV = VectorUtil.Abs(v);
 
     // build a bounding box for the segment.
@@ -394,14 +421,10 @@ public class AabbTree<T> where T : class
     {
       int index = m_stack.Pop();
       if (index == Null)
-      {
         continue;
-      }
 
-      if (Aabb.Intersects(m_nodes[index].Bounds, rayBounds) == false)
-      {
+      if (!Aabb.Intersects(m_nodes[index].Bounds, rayBounds))
         continue;
-      }
 
       // Separating axis for segment (Gino, p80).
       // |dot(v, a - c)| > dot(|v|, h)
@@ -413,7 +436,9 @@ public class AabbTree<T> where T : class
 
       if (m_nodes[index].IsLeaf)
       {
-        float t = m_nodes[index].Bounds.RayCast(from, to, maxFraction);
+        Aabb tightBounds = m_nodes[index].Bounds;
+        tightBounds.Expand(-FatBoundsRadius);
+        float t = tightBounds.RayCast(from, to, maxFraction);
         if (t < 0.0f)
           continue;
 
@@ -749,55 +774,119 @@ public class AabbTree<T> where T : class
     if (m_root == Null)
       return;
 
-    Color prevColor = Gizmos.color;
+    Color prevColor = Handles.color;
 
-    int isolateHeight = m_nodes[m_root].Height + isolateDepth;
+    int isolateHeight = m_nodes[m_root].Height - isolateDepth;
+
+    var aNodeVisited = new bool[m_nodes.Length];
+    for (int i = 0; i < aNodeVisited.Length; ++i)
+      aNodeVisited[i] = false;
 
     for (int i = 0; i < m_nodes.Length; ++i)
     {
-      if (m_nodes[i].Height < 0)
+      if (m_nodes[i].IsFree)
+        continue;
+
+      if (aNodeVisited[i])
         continue;
 
       Aabb bounds = m_nodes[i].Bounds;
 
-      if (isolateHeight >= 0)
+      if (isolateDepth >= 0)
       {
-        if (m_nodes[i].Height < isolateHeight - 1 && m_nodes[i].Height > isolateHeight)
+        if (m_nodes[i].Height != isolateHeight)
           continue;
         
-        Gizmos.color =
+        Gizmos.color = 
           m_nodes[i].Height == isolateHeight - 1 
             ? Color.gray 
             : Color.white;
 
-        // parent above isolate depth?
-        if (m_nodes[i].Height == isolateHeight - 1)
-        {
-          Gizmos.DrawWireCube(bounds.Center, bounds.Extents);
+        Handles.color = Color.gray;
+        DebugDrawNode(m_nodes[i].Parent, false, true, false);
+        DebugDrawLink(i, m_nodes[i].Parent);
+        DebugDrawNode(m_nodes[i].ChildA, true, true, false);
+        DebugDrawLink(i, m_nodes[i].ChildA);
+        DebugDrawNode(m_nodes[i].ChildB, true, true, false);
+        DebugDrawLink(i, m_nodes[i].ChildB);
+        if (m_nodes[i].ChildA != Null)
+          aNodeVisited[m_nodes[i].ChildA] = true;
+        if (m_nodes[i].ChildB != Null)
+          aNodeVisited[m_nodes[i].ChildB] = true;
 
-          int childA = m_nodes[i].ChildA;
-          if (childA != Null)
-          {
-            Aabb childBoundsA = m_nodes[childA].Bounds;
-            Gizmos.DrawLine(bounds.Min, childBoundsA.Min);
-          }
+        Handles.color = Color.white;
+        DebugDrawNode(i, true, true, false);
+        aNodeVisited[i] = true;
 
-          int childB = m_nodes[i].ChildB;
-          if (childB != Null)
-          {
-            Aabb childBoundsB = m_nodes[childB].Bounds;
-            Gizmos.DrawLine(bounds.Min, childBoundsB.Min);
-          }
-
-          continue;
-        }
+        continue;
       }
       
-      Gizmos.color = Color.white;
-      Gizmos.DrawWireCube(bounds.Center, bounds.Extents);
+      Handles.color = Color.white;
+      DebugDrawLink(i, m_nodes[i].Parent);
+      DebugDrawNode(i, true, true, true);
+      aNodeVisited[i] = true;
     }
 
     Gizmos.color = prevColor;
     #endif
   }
+
+  #if UNITY_EDITOR
+  private void DebugDrawLink(int from, int to)
+  {
+    if (from == Null || to == Null)
+      return;
+
+    Aabb fromBounds = m_nodes[from].Bounds;
+    Aabb toBounds = m_nodes[to].Bounds;
+
+    Handles.DrawLine(fromBounds.Center, toBounds.Center);
+  }
+
+  private void DebugDrawNode(int index, bool drawBounds, bool drawLabel, bool fullTreeMode)
+  {
+    if (index == Null)
+      return;
+
+    Aabb bounds = m_nodes[index].Bounds;
+
+    if (drawBounds)
+    {
+      if (m_nodes[index].IsLeaf || !fullTreeMode)
+      {
+        Handles.DrawWireCube(bounds.Center, bounds.Extents);
+
+        RayMarchedShape shape = m_nodes[index].UserData as RayMarchedShape;
+        if (shape != null)
+        {
+          Aabb tightBounds = shape.Bounds;
+
+          Color prevColor = Handles.color;
+          Handles.color = new Color(prevColor.r, prevColor.g, prevColor.b, 0.3f);
+
+          Handles.DrawWireCube(tightBounds.Center, tightBounds.Extents);
+
+          Handles.color = prevColor;
+        }
+      }
+    }
+
+    Handles.SphereHandleCap(0, bounds.Center, Quaternion.identity, 0.05f, EventType.Repaint);
+
+    if (drawLabel)
+    {
+      RayMarchedShape shape = m_nodes[index].UserData as RayMarchedShape;
+      Handles.Label
+      (
+        bounds.Center, 
+            "Node  : " + index + (index == m_root ? " (root)" : "") + (m_nodes[index].IsLeaf ? " (Leaf)" : "") 
+        + "\nParent: " + m_nodes[index].Parent 
+        + "\nChildA: " + m_nodes[index].ChildA 
+        + "\nChildB: " + m_nodes[index].ChildB 
+        + "\nHeight: " + m_nodes[index].Height 
+        + (shape != null ? "\nShape : " + shape.ShapeIndex : "")
+      );
+    }
+  }
+  #endif
 }

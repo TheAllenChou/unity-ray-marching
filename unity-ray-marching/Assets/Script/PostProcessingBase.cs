@@ -9,11 +9,11 @@
 */
 /******************************************************************************/
 
+using UnityEngine;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
-
-using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
 [ExecuteInEditMode]

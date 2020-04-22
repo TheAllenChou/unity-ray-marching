@@ -37,10 +37,24 @@ public class RayMarchedShape : MonoBehaviour
     return s_sdfShapes;
   }
 
-  public static void FillBounds(ComputeBuffer buffer)
+  public static void Query(Aabb bounds, AabbTree<RayMarchedShape>.QueryCallbcak callback)
+  {
+    s_tree.Query(bounds, callback);
+  }
+
+  public static void RayCast(Vector3 from, Vector3 to, AabbTree<RayMarchedShape>.RayCastCallback callback)
+  {
+    s_tree.RayCast(from, to, callback);
+  }
+
+  public static int AabbTreeCapacity { get { return s_tree.Capacity; } }
+  public static int AabbTreeRoot { get { return s_tree.Root; } }
+  public static int FillAabbTree(ComputeBuffer buffer, float aabbTightenRadius = 0.0f)
   {
     SyncBounds();
-    s_tree.Fill(buffer);
+
+    int root = s_tree.Fill(buffer, aabbTightenRadius);
+    return root;
   }
 
   public static void SyncBounds()
@@ -65,12 +79,14 @@ public class RayMarchedShape : MonoBehaviour
   }
 
   public OperatorEnum Operator = OperatorEnum.Union;
-  private int m_index = -1;
+  private int m_shapeIndex = -1;
   private int m_iProxy = AabbTree<RayMarchedShape>.Null;
+
+  public int ShapeIndex { get { return m_shapeIndex; } }
 
   private void OnEnable()
   {
-    m_index = s_shapeComponents.Count;
+    m_shapeIndex = s_shapeComponents.Count;
     s_shapeComponents.Add(this);
 
     m_iProxy = s_tree.CreateProxy(Bounds, this);
@@ -78,10 +94,10 @@ public class RayMarchedShape : MonoBehaviour
 
   private void OnDisable()
   {
-    s_shapeComponents[m_index] = s_shapeComponents[s_shapeComponents.Count - 1];
-    s_shapeComponents[m_index].m_index = m_index;
+    s_shapeComponents[m_shapeIndex] = s_shapeComponents[s_shapeComponents.Count - 1];
+    s_shapeComponents[m_shapeIndex].m_shapeIndex = m_shapeIndex;
     s_shapeComponents.RemoveAt(s_shapeComponents.Count - 1);
-    m_index = -1;
+    m_shapeIndex = -1;
 
     s_tree.DestroyProxy(m_iProxy);
     m_iProxy = AabbTree<RayMarchedShape>.Null;

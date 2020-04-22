@@ -25,8 +25,8 @@
 #define kSqrt2Inv    (0.7071067811)
 #define kSqrt3Inv    (0.5773502691)
 
-#define kEpsilon     (0.0000000001)
-#define kEpsilonComp (0.9999999999)
+#define kEpsilon     (1e-16f)
+#define kEpsilonComp (1.0f - kEpsilon)
 
 #define kRad2Deg     (57.295779513)
 #define kDeg2Rad     (0.0174532925)

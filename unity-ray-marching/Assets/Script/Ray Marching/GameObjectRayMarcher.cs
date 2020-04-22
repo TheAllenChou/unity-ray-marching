@@ -10,7 +10,12 @@
 /******************************************************************************/
 
 using System.Collections.Generic;
+
 using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [RequireComponent(typeof(Camera))]
 [ExecuteInEditMode]
@@ -18,7 +23,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
 {
   private static readonly int TileSize = 8;
 
-  public enum HeatMapMode
+  public enum HeatMapModeEnum
   {
     None, 
     StepCountPerThread, 
@@ -36,13 +41,20 @@ public class GameObjectRayMarcher : PostProcessingCompute
   public float RayHitThreshold = 0.005f;
   public float MaxRayDistance = 1000.0f;
 
-  [Header("Debug")]
+  [Header("Bounding Volume Hierarchy")]
   public bool DrawBoundingVolumes = false;
+  [ConditionalField(Label = "  Isolate BVH Depth", Min = -1, Max = 16)]
   public int IsolateBoundingVolumeDepth = -1;
-  public HeatMapMode HeatMap = HeatMapMode.None;
-  [ConditionalField("DebugMode", HeatMapMode.StepCountPerThread, HeatMapMode.StepCountPerTile, Min = 1, Max = 256)]
+  [ConditionalField(Label = "Test BVH Bounds Query")]
+  public bool TestBvhBoundsQuery = false;
+  [ConditionalField(Label = "Test BVH Ray Cast")]
+  public bool TestBvhRayCast = false;
+
+  [Header("Heat Map")]
+  public HeatMapModeEnum HeatMapMode = HeatMapModeEnum.None;
+  [ConditionalField("HeatMapMode", HeatMapModeEnum.StepCountPerThread, HeatMapModeEnum.StepCountPerTile, Min = 1, Max = 256)]
   public int MaxStepCountBudget = 128;
-  [ConditionalField("DebugMode", HeatMapMode.ShapeCountPerThread, HeatMapMode.ShapeCountPerTile, Min = 1, Max = 256)]
+  [ConditionalField("HeatMapMode", HeatMapModeEnum.ShapeCountPerThread, HeatMapModeEnum.ShapeCountPerTile, Min = 1, Max = 256)]
   public int MaxShapeCountBudget = 64;
   public Color HeatColorCool = new Color(0.0f, 1.0f, 0.0f);
   public Color HeatColorMedium = new Color(1.0f, 1.0f, 0.0f);
@@ -69,12 +81,16 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
     public int SdfShapes;
     public int NumSdfShapes;
+    public int TempBuffer;
 
     public int BlendDistance;
     public int RayMarchParams;
 
     public int BackgroundColor;
     public int MissColor;
+
+    public int AabbTree;
+    public int AabbTreeRoot;
 
     public int HeatMap;
     public int HeatColorCool;
@@ -89,6 +105,8 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
   private ShaderConstants m_const;
   private ComputeBuffer m_shapes;
+  private RenderTexture m_tempBuffer;
+  private ComputeBuffer m_aabbTree;
   private RenderTexture m_heatMap;
 
   protected override void OnValidate()
@@ -129,12 +147,16 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
     m_const.SdfShapes = Shader.PropertyToID("aSdfShape");
     m_const.NumSdfShapes = Shader.PropertyToID("numSdfShapes");
+    m_const.TempBuffer = Shader.PropertyToID("tempBuffer");
 
     m_const.RayMarchParams = Shader.PropertyToID("rayMarchParams");
     m_const.BlendDistance = Shader.PropertyToID("blendDist");
 
     m_const.BackgroundColor = Shader.PropertyToID("backgroundColor");
     m_const.MissColor = Shader.PropertyToID("missColor");
+
+    m_const.AabbTree = Shader.PropertyToID("aabbTree");
+    m_const.AabbTreeRoot = Shader.PropertyToID("aabbTreeRoot");
 
     m_const.HeatMap = Shader.PropertyToID("heatMap");
     m_const.HeatColorCool = Shader.PropertyToID("heatColorCool");
@@ -162,6 +184,7 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
   protected override void OnPreRenderImage(ComputeShader compute, RenderTexture src, RenderTexture dst)
   {
+    // validate SDF shapes buffer
     var sdfShapes = RayMarchedShape.GetShapes();
     int numShapes = sdfShapes.Count;
     if (m_shapes == null 
@@ -170,11 +193,42 @@ public class GameObjectRayMarcher : PostProcessingCompute
       if (m_shapes != null)
       {
         m_shapes.Dispose();
+        m_shapes = null;
       }
 
       m_shapes = new ComputeBuffer(Mathf.Max(1, numShapes), SdfShape.Stride);
     }
 
+    // validate SDF temp buffer
+    if (m_tempBuffer == null
+        || m_tempBuffer.width != src.width
+        || m_tempBuffer.height != src.height)
+    {
+      if (m_tempBuffer != null)
+      {
+        DestroyImmediate(m_tempBuffer);
+        m_tempBuffer = null;
+      }
+
+      m_tempBuffer = new RenderTexture(src.width, src.height, 0, RenderTextureFormat.ARGBFloat);
+      m_tempBuffer.enableRandomWrite = true;
+      m_tempBuffer.Create();
+    }
+
+    // validate AABB tree buffer
+    if (m_aabbTree == null 
+        || m_aabbTree.count != RayMarchedShape.AabbTreeCapacity)
+    {
+      if (m_aabbTree != null)
+      {
+        m_aabbTree.Dispose();
+        m_aabbTree = null;
+      }
+
+      m_aabbTree = new ComputeBuffer(RayMarchedShape.AabbTreeCapacity, AabbTree<RayMarchedShape>.NodePod.Stride);
+    }
+
+    // validate heat map buffer
     if (m_heatMap == null 
         || m_heatMap.width != src.width 
         || m_heatMap.height != src.height)
@@ -190,9 +244,9 @@ public class GameObjectRayMarcher : PostProcessingCompute
       m_heatMap.Create();
     }
 
+    // fill buffers
     m_shapes.SetData(sdfShapes);
-
-    var camera = GetComponent<Camera>();
+    RayMarchedShape.FillAabbTree(m_aabbTree, AabbTree<RayMarchedShape>.FatBoundsRadius - BlendDistance);
 
     if (m_const.Kernels == null)
     {
@@ -203,11 +257,16 @@ public class GameObjectRayMarcher : PostProcessingCompute
     {
       compute.SetTexture(kernel, m_const.Src, src);
       compute.SetTexture(kernel, m_const.Dst, dst);
-      compute.SetTexture(kernel, m_const.HeatMap, m_heatMap);
 
       compute.SetBuffer(kernel, m_const.SdfShapes, m_shapes);
+      compute.SetTexture(kernel, m_const.TempBuffer, m_tempBuffer);
+
+      compute.SetBuffer(kernel, m_const.AabbTree, m_aabbTree);
+
+      compute.SetTexture(kernel, m_const.HeatMap, m_heatMap);
     }
 
+    var camera = GetComponent<Camera>();
     compute.SetMatrix(m_const.CameraInverseProjection, camera.projectionMatrix.inverse);
     compute.SetMatrix(m_const.CameraToWorld, camera.cameraToWorldMatrix);
     compute.SetVector(m_const.CameraPosition, camera.transform.position);
@@ -220,6 +279,8 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
     compute.SetVector(m_const.BackgroundColor, new Vector4(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, BackgroundColor.a));
     compute.SetVector(m_const.MissColor, new Vector4(MissColor.r, MissColor.g, MissColor.b, MissColor.a));
+
+    compute.SetInt(m_const.AabbTreeRoot, RayMarchedShape.AabbTreeRoot);
 
     compute.SetVector(m_const.HeatColorCool, new Vector4(HeatColorCool.r, HeatColorCool.g, HeatColorCool.b, HeatColorCool.a));
     compute.SetVector(m_const.HeatColorMedium, new Vector4(HeatColorMedium.r, HeatColorMedium.g, HeatColorMedium.b, HeatColorMedium.a));
@@ -236,24 +297,24 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
     compute.Dispatch(m_const.MainKernel, threadGroupSizeX, threadGroupSizeY, 1);
 
-    switch (HeatMap)
+    switch (HeatMapMode)
     {
-      case HeatMapMode.StepCountPerThread:
+      case HeatMapModeEnum.StepCountPerThread:
         compute.SetInt(m_const.MaxCountBudget, MaxStepCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case HeatMapMode.StepCountPerTile:
+      case HeatMapModeEnum.StepCountPerTile:
         compute.SetInt(m_const.MaxCountBudget, MaxStepCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case HeatMapMode.ShapeCountPerThread:
+      case HeatMapModeEnum.ShapeCountPerThread:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerThread, threadGroupSizeX, threadGroupSizeY, 1);
         break;
 
-      case HeatMapMode.ShapeCountPerTile:
+      case HeatMapModeEnum.ShapeCountPerTile:
         compute.SetInt(m_const.MaxCountBudget, MaxShapeCountBudget);
         compute.Dispatch(m_const.StepCountKernelPerTile, threadGroupSizeX, threadGroupSizeY, 1);
         break;
@@ -262,9 +323,68 @@ public class GameObjectRayMarcher : PostProcessingCompute
 
   private void OnDrawGizmos()
   {
+    #if UNITY_EDITOR
+
+    var camera = GetComponent<Camera>();
+
     if (DrawBoundingVolumes)
     {
       RayMarchedShape.DrawBoundingVolumeHierarchyGizmos(IsolateBoundingVolumeDepth);
     }
+
+    if (TestBvhBoundsQuery)
+    {
+      Color prevColor = Handles.color;
+
+      Aabb queryBounds = 
+        new Aabb
+        (
+          camera.transform.position - 0.5f * Vector3.one, 
+          camera.transform.position + 0.5f * Vector3.one
+        );
+
+      Handles.color = Color.yellow;
+      Handles.DrawWireCube(queryBounds.Center, queryBounds.Extents);
+
+      Handles.color = new Color(1.0f, 1.0f, 0.0f, 0.5f);
+      RayMarchedShape.Query
+      (
+        queryBounds, 
+        (RayMarchedShape shape) =>
+        {
+          Handles.DrawWireCube(shape.Bounds.Center, shape.Bounds.Extents);
+          return true;
+        }
+      );
+
+      Handles.color = prevColor;
+    }
+
+    if (TestBvhRayCast)
+    {
+      Color prevColor = Handles.color;
+
+      Vector3 cameraFrom = camera.transform.position;
+      Vector3 cameraTo = cameraFrom + 10.0f * camera.transform.forward;
+
+      Handles.color = Color.yellow;
+      Handles.DrawLine(cameraFrom, cameraTo);
+
+      Handles.color = new Color(1.0f, 1.0f, 0.0f, 0.5f);
+      RayMarchedShape.RayCast
+      (
+        cameraFrom, 
+        cameraTo, 
+        (Vector3 from, Vector3 to, RayMarchedShape shape) => 
+        {
+          Handles.DrawWireCube(shape.Bounds.Center, shape.Bounds.Extents);
+          return 1.0f;
+        }
+      );
+
+      Handles.color = prevColor;
+    }
+
+    #endif
   }
 }

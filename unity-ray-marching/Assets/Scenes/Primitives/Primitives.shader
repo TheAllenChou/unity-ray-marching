@@ -46,7 +46,7 @@ Shader "Hidden/Primitives"
       sampler2D _MainTex;
       sampler2D _CameraDepthTexture;
 
-      float map(float3 p)
+      float map(float3 p, int userData)
       {
         const float3 kSphereCenter = float3(0.0f, 0.0f, 5.0f);
         const float3 kSphereRadius = 1.0f;
@@ -71,7 +71,7 @@ Shader "Hidden/Primitives"
 
       float3 normal(float3 p)
       {
-        return sdf_normal(p, map, 0.01f);
+        return sdf_normal(p, map, 0.01f, 0);
       }
 
       float3 march(float3 ro, float3 rd)
