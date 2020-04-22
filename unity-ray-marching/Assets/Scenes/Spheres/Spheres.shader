@@ -66,7 +66,7 @@ Shader "Hidden/Spheres"
 
       float3 normal(float3 p)
       {
-        return sdf_normal(p, map, 0.01f, 0);
+        return sdf_normal(p, map, 0.01f);
       }
 
       float3 march(float3 ro, float3 rd)

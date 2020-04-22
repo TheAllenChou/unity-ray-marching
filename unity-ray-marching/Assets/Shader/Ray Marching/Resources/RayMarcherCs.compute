@@ -11,8 +11,15 @@
 /******************************************************************************/
 
 #include "../SDF/SDF.cginc"
+#include "AabbTree.cginc"
+
+
+// constants
+//-----------------------------------------------------------------------------
 
 #define kTileSize (8)
+#define kMaxShapesPerRay   (64)
+#define kAabbTreeStackSize (128)
 
 Texture2D<float4> src;
 RWTexture2D<float4> dst;
@@ -40,156 +47,11 @@ float heatAlpha;
 
 int maxCountBudget;
 
-
-// AABB tree
-//-----------------------------------------------------------------------------
-
-struct Aabb
-{
-  float4 boundsMin;
-  float4 boundsMax;
-};
-
-struct AabbNode
-{
-  Aabb aabb;
-  int parent;
-  int childA;
-  int childB;
-  int shapeIndex;
-};
-
-#define kAabbStackSize (256)
-
 StructuredBuffer<AabbNode> aabbTree;
 int aabbTreeRoot;
 
-inline float3 aabb_center(Aabb aabb)
-{
-  return 0.5f * (aabb.boundsMin.xyz + aabb.boundsMax.xyz);
-}
-
-inline float3 aabb_extents(Aabb aabb)
-{
-  return aabb.boundsMax.xyz - aabb.boundsMin.xyz;
-}
-
-inline float3 aabb_half_extents(Aabb aabb)
-{
-  return 0.5f * (aabb.boundsMax.xyz - aabb.boundsMin.xyz);
-}
-
-inline bool aabb_intersects(Aabb a, Aabb b)
-{
-  return all(a.boundsMin <= b.boundsMax && a.boundsMax >= b.boundsMin);
-}
-
-float aabb_ray_cast(Aabb aabb, float3 from, float3 to)
-{
-  float tMin = -kFltMax;
-  float tMax = +kFltMax;
-
-  float3 d = to - from;
-  float3 absD = abs(d);
-
-  if (any(absD < kEpsilon))
-  {
-    // parallel?
-    if (any(from < aabb.boundsMin.xyz) || any(aabb.boundsMax.xyz < from))
-      return -kFltMax;
-  }
-  else
-  {
-    float3 invD = 1.0f / d;
-    float3 t1 = (aabb.boundsMin.xyz - from) * invD;
-    float3 t2 = (aabb.boundsMax.xyz - from) * invD;
-    float3 minComps = min(t1, t2);
-    float3 maxComps = max(t1, t2);
-
-    tMin = max(minComps.x, max(minComps.y, minComps.z));
-    tMax = min(maxComps.x, min(maxComps.y, maxComps.z));
-  }
-
-  if (tMin > tMax)
-    return -kFltMax;
-
-  if (tMin < 0.0f)
-    return -kFltMax;
-
-  return tMin;
-}
-
-float3 sdf_aabb_tree_ray_cast(float3 p, float3 from, float3 to, int3 id)
-{
-  float3 r = normalize(to - from);
-
-  // v is perpendicular to the segment.
-  float3 v = normalize(find_ortho(r));
-  float3 absV = abs(v);
-
-  // build a bounding box for the segment.
-  Aabb rayBounds;
-  rayBounds.boundsMin = float4(min(from, to), 0.0f) - float4(1.0f, 1.0f, 1.0f, 1.0f);
-  rayBounds.boundsMax = float4(max(from, to), 0.0f) + float4(1.0f, 1.0f, 1.0f, 1.0f);
-
-  int stackTop = 0;
-  int aabbStack[kAabbStackSize];
-  aabbStack[stackTop] = aabbTreeRoot;
-
-  float3 res = kInfinity;
-
-  while (stackTop >= 0)
-  {
-    int index = aabbStack[stackTop--];
-    if (index < 0)
-      continue;
-
-    if (!aabb_intersects(aabbTree[index].aabb, rayBounds))
-      continue;
-
-    // Separating axis for segment (Gino, p80).
-    // |dot(v, a - c)| > dot(|v|, h)
-    float3 c = aabb_center(aabbTree[index].aabb);
-    float3 h = aabb_half_extents(aabbTree[index].aabb);
-    float separation = abs(dot(v, from - c)) - dot(absV, h);
-    if (separation > 0.0f)
-      continue;
-
-    // is leaf?
-    if (aabbTree[index].childA < 0)
-    {
-      float t = aabb_ray_cast(aabbTree[index].aabb, from, to);
-      if (t < 0.0f)
-        continue;
-
-      // why doesn't a switch state ment work here?
-      int iShape = aabbTree[index].shapeIndex;
-      int op = aSdfShape[iShape].data0.y;
-      if (op == kSdfUnion)
-      {
-        res.x = sdf_uni_smooth(res.x, sdf_shape(p, aSdfShape[iShape]), blendDist);
-      }
-      else if (op == kSdfSubtraction)
-      {
-        res.y = sdf_uni_smooth(res.y, sdf_shape(p, aSdfShape[iShape]), blendDist);
-      }
-      else if (op == kSdfIntersection)
-      {
-        res.z = sdf_uni_smooth(res.z, sdf_shape(p, aSdfShape[iShape]), blendDist);
-      }
-    }
-    else
-    {
-      aabbStack[++stackTop] = aabbTree[index].childA;
-      aabbStack[++stackTop] = aabbTree[index].childB;
-    }
-  }
-
-  return res;
-}
-
 //-----------------------------------------------------------------------------
-// end: AABB tree
+// end: constants
 
 
 // ray marching
@@ -200,41 +62,28 @@ float3 sdf_aabb_tree_ray_cast(float3 p, float3 from, float3 to, int3 id)
 #define kModeStepCount  (1)
 #define kModeShapeCount (2)
 
-float master_sdf(float3 p, int3 id)
+float ground_truth_sdf(float3 p, int3 id)
 {
   if (numSdfShapes <= 0)
     return kInfinity;
 
   float3 opRes = kInfinity;
 
-  bool useAabbTree = true;
-  if (useAabbTree)
+  for (int i = 0; i < numSdfShapes; ++i)
   {
-    float3 ro = cameraPos.xyz;
-    float3 rd = tempBuffer[id.xy];
-    
-    const float maxDist = rayMarchParams.z;
-
-    opRes = sdf_aabb_tree_ray_cast(p, ro, ro + maxDist * rd, id);
-  }
-  else
-  {
-    for (int i = 0; i < numSdfShapes; ++i)
+    // why doesn't a switch state ment work here?
+    int op = aSdfShape[i].data0.y;
+    if (op == kSdfUnion)
     {
-      // why doesn't a switch state ment work here?
-      int op = aSdfShape[i].data0.y;
-      if (op == kSdfUnion)
-      {
-        opRes.x = sdf_uni_smooth(opRes.x, sdf_shape(p, aSdfShape[i]), blendDist);
-      }
-      else if (op == kSdfSubtraction)
-      {
-        opRes.y = sdf_uni_smooth(opRes.y, sdf_shape(p, aSdfShape[i]), blendDist);
-      }
-      else if (op == kSdfIntersection)
-      {
-        opRes.z = sdf_uni_smooth(opRes.z, sdf_shape(p, aSdfShape[i]), blendDist);
-      }
+      opRes.x = sdf_uni_smooth(opRes.x, sdf_shape(p, aSdfShape[i]), blendDist);
+    }
+    else if (op == kSdfSubtraction)
+    {
+      opRes.y = sdf_uni_smooth(opRes.y, sdf_shape(p, aSdfShape[i]), blendDist);
+    }
+    else if (op == kSdfIntersection)
+    {
+      opRes.z = sdf_uni_smooth(opRes.z, sdf_shape(p, aSdfShape[i]), blendDist);
     }
   }
 
@@ -253,6 +102,31 @@ float3 heat_color(float t)
       : lerp(heatColorMedium.rgb, heatColorHot.rgb, (t - 0.5f) / 0.5f);
 }
 
+#define SDF_NEAR_SHAPES(res, p, aiNearShape, numNearShapes)                              \
+  {                                                                                      \
+    float3 opRes = kInfinity;                                                            \
+    for (int i = 0; i < numNearShapes; ++i)                                              \
+    {                                                                                    \
+      const int iShape = aiNearShape[i];                                                 \
+      const int op = aSdfShape[iShape].data0.y;                                          \
+      if (op == kSdfUnion)                                                               \
+      {                                                                                  \
+        opRes.x = sdf_uni_smooth(opRes.x, sdf_shape(p, aSdfShape[iShape]), blendDist);   \
+      }                                                                                  \
+      else if (op == kSdfSubtraction)                                                    \
+      {                                                                                  \
+        opRes.y = sdf_uni_smooth(opRes.y, sdf_shape(p, aSdfShape[iShape]), blendDist);   \
+      }                                                                                  \
+      else if (op == kSdfIntersection)                                                   \
+      {                                                                                  \
+        opRes.z = sdf_uni_smooth(opRes.z, sdf_shape(p, aSdfShape[iShape]), blendDist);   \
+      }                                                                                  \
+    }                                                                                    \
+    res = sdf_sub_smooth(opRes.x, opRes.y, blendDist);                                   \
+    if (opRes.z < kInfinity)                                                             \
+      res = sdf_int_smooth(res, opRes.z, blendDist);                                     \
+  }
+
 float4 march(int3 id, int mode)
 {
   // TODO: move hard-coded material out of here
@@ -260,24 +134,33 @@ float4 march(int3 id, int mode)
   const float3 kAmbient = 0.1f * kDiffuse;
 
   // set up ray
-  float2 uv = float2(id.xy) / screenSize;
-  float4 view = mul(cameraInvProj, float4(uv * 2.0f - 1.0f, 0.0f, 1.0f));
-  float3 ro = cameraPos.xyz;
-  float3 rd = normalize(mul(cameraToWorld, float4(view.xyz, 0.0f)).xyz);
+  const float2 uv = float2(id.xy) / screenSize;
+  const float4 view = mul(cameraInvProj, float4(uv * 2.0f - 1.0f, 0.0f, 1.0f));
+  const float3 ro = cameraPos.xyz;
+  const float3 rd = normalize(mul(cameraToWorld, float4(view.xyz, 0.0f)).xyz);
 
-  tempBuffer[id.xy] = float4(rd, 0.0f);
-  
   // params
   const int maxSteps = int(rayMarchParams.x);
   const float hitDist = rayMarchParams.y;
   const float maxDist = rayMarchParams.z;
 
+  // gather shapes around ray by casting it against AABB tree
+  int aiNearShape[kMaxShapesPerRay];
+  int numNearShapes = 0;
+  aabb_tree_ray_cast(aabbTree, aabbTreeRoot, ro, ro + maxDist * rd, kAabbTreeStackSize, 
+    numNearShapes = min(numNearShapes + 1, kMaxShapesPerRay);
+    aiNearShape[numNearShapes - 1] = shapeIndex;
+  );
+
   // march ray
   float dist = 0.0f;
   for (int iStep = 0; iStep < maxSteps; ++iStep)
   {
-    float3 p = ro + dist * rd;
-    float d = master_sdf(p, id);
+    const float3 p = ro + dist * rd;
+
+    // const float d = ground_truth_sdf(p);
+    float d = kInfinity;
+    SDF_NEAR_SHAPES(d, p, aiNearShape, numNearShapes);
 
     // hit shape?
     if (d < hitDist)
@@ -285,12 +168,30 @@ float4 march(int3 id, int mode)
       // TODO: why doesn't a switch statement work here?
       if (mode == kModeMain)
       {
-        float3 n = sdf_normal(p, master_sdf, 0.01f, id);
-        float3 lightPos = ro + float3(0.0f, 1.0f, 0.0f);
-        float3 lightDir = normalize(p - lightPos);
-        float3 shaded = max(pow(dot(n, -lightDir), 1.0f), kAmbient) * kDiffuse;
-        float3 fresnel = 0.3f * pow(saturate(1.0f - dot(n, -rd)), 2.0f);
-        float3 specular = 0.2f * pow(saturate(dot(n, -normalize(rd + lightDir))), 100.0f);
+        // TODO: choose h to be proportional to pixel footprint
+        // http://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
+        const float h = 0.01f;
+
+        //const float3 n = sdf_normal(p, ground_truth_sdf, h);
+        float n0, n1, n2, n3;
+        SDF_NEAR_SHAPES(n0, p + float3( (h), -(h), -(h)), aiNearShape, numNearShapes);
+        SDF_NEAR_SHAPES(n1, p + float3(-(h), -(h),  (h)), aiNearShape, numNearShapes);
+        SDF_NEAR_SHAPES(n2, p + float3(-(h),  (h), -(h)), aiNearShape, numNearShapes);
+        SDF_NEAR_SHAPES(n3, p + float3( (h),  (h),  (h)), aiNearShape, numNearShapes);
+        const float3 n = 
+          normalize
+          (
+              float3( 1.0f, -1.0f, -1.0f) * n0 
+            + float3(-1.0f, -1.0f,  1.0f) * n1 
+            + float3(-1.0f,  1.0f, -1.0f) * n2 
+            + float3( 1.0f,  1.0f,  1.0f) * n3
+          );
+         
+        const float3 lightPos = ro + float3(0.0f, 1.0f, 0.0f);
+        const float3 lightDir = normalize(p - lightPos);
+        const float3 shaded = max(pow(dot(n, -lightDir), 1.0f), kAmbient) * kDiffuse;
+        const float3 fresnel = 0.3f * pow(saturate(1.0f - dot(n, -rd)), 2.0f);
+        const float3 specular = 0.2f * pow(saturate(dot(n, -normalize(rd + lightDir))), 100.0f);
 
         return float4(shaded + fresnel + specular, d);
       }
