@@ -72,7 +72,7 @@ float ground_truth_sdf(float3 p)
 
   for (int i = 0; i < numSdfShapes; ++i)
   {
-    // why doesn't a switch state ment work here?
+    // why doesn't a switch statement work here?
     int op = aSdfShape[i].data0.y;
     if (op == kSdfUnion)
     {
