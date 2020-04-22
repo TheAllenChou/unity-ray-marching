@@ -149,22 +149,18 @@ float3 sdf_aabb_tree_ray_cast(float3 p, float3 from, float3 to, int3 id)
 
     // Separating axis for segment (Gino, p80).
     // |dot(v, a - c)| > dot(|v|, h)
-    /*
     float3 c = aabb_center(aabbTree[index].aabb);
     float3 h = aabb_half_extents(aabbTree[index].aabb);
     float separation = abs(dot(v, from - c)) - dot(absV, h);
     if (separation > 0.0f)
       continue;
-    */
 
     // is leaf?
     if (aabbTree[index].childA < 0)
     {
-      /*
       float t = aabb_ray_cast(aabbTree[index].aabb, from, to);
       if (t < 0.0f)
         continue;
-      */
 
       // why doesn't a switch state ment work here?
       int iShape = aabbTree[index].shapeIndex;
