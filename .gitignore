@@ -4,9 +4,6 @@ unity-ray-marching/[Tt]emp/
 unity-ray-marching/[Oo]bj/
 unity-ray-marching/[Bb]uild/
 unity-ray-marching/[Bb]uilds/
-unity-ray-marching/Assets/FrameCapturer
-unity-ray-marching/Assets/AssetStoreTools*
-unity-ray-marching/ProjectSettings
 unity-ray-marching/.vs/
 bin/
 
