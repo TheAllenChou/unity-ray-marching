@@ -5,6 +5,7 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
 
 ## Features (including planned)
   * Global Boolean operations: union, subtraction, intersection (WIP).
+  * Heat maps: number of ray steps & number of SDF evaluations.
   * [Planned] Local Boolean operations.
   * [Planned] Materials.
   * [Planned] Volumetric ray marching, e.g. fog, clouds, etc.
