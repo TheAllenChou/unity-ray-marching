@@ -20,5 +20,5 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
   * [Smooth SDF Unions](http://www.iquilezles.org/www/articles/smin/smin.htm)
   * [SDF Normals](http://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm)
   * [Shadertoy](http://shadertoy.com)
-  * [Dynamic Bounding Volume Hierarchies by Erin Catto (GDC 2019)](https://box2d.org/files/ErinCatto_DynamicBVH_GDC2019.pdf)
-  * [Box2D Erin Catto](https://github.com/erincatto/box2d)
+  * [Dynamic Bounding Volume Hierarchies (GDC 2019)](https://box2d.org/files/ErinCatto_DynamicBVH_GDC2019.pdf)
+  * [Box2D](https://github.com/erincatto/box2d)
