@@ -104,8 +104,6 @@ public class GameObjectRayMarcher : PostProcessingCompute
     public int MaxCountBudget;
   }
 
-  public List<Transform> Shapes;
-
   private ShaderConstants m_const;
   private ComputeBuffer m_shapes;
   private RenderTexture m_tempBuffer;

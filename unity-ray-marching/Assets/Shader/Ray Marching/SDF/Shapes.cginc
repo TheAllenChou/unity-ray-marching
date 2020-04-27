@@ -22,7 +22,7 @@
 
 #define kSdfUnion        (0)
 #define kSdfSubtraction  (1)
-#define kSdfIntersection (3)
+#define kSdfIntersection (2)
 
 #define kFltMax   (1e32f)
 #define kInfinity kFltMax

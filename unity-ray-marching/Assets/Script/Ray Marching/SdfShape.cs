@@ -9,8 +9,11 @@
 */
 /******************************************************************************/
 
+using System.Runtime.InteropServices;
+
 using UnityEngine;
 
+[StructLayout(LayoutKind.Sequential, Pack = 0)]
 public struct SdfShape
 {
   public static readonly int Stride = 4 * sizeof(int) + 12 * sizeof(float);
