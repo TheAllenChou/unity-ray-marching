@@ -4,7 +4,7 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
 ![](/img/smooth-sphere-union.gif) ![](/img/interactive-game-objects.gif) ![](/img/heat-maps.gif)
 
 ## Features
-  * Boolean operations: union, subtraction, intersection (WIP).
+  * Smooth Boolean operations: union, subtraction, intersection.
   * Heat maps: number of ray steps & number of SDF evaluations.
 
 ## Optimization Techniques
