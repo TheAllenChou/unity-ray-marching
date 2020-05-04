@@ -9,7 +9,7 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
 
 ## Optimization Techniques
   * Bounding volume hierarchy (BVH) using dynamic AABB trees.
-  * Per-pixel ray cast against BVH.
+  * AABB query & ray query against AABB trees on GPU.
 
 ## References & Resources
   * [How Ray Marching & Signed Distance Fields (SDF) Work](http://www.michaelwalczyk.com/blog/2017/5/25/ray-marching)
