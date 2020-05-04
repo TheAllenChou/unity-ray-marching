@@ -6,6 +6,7 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
 ## Features
   * Smooth Boolean operations: union, subtraction, intersection.
   * Heat maps: number of ray steps & number of SDF evaluations.
+  * Final rendered image entirely generated using compute shader.
 
 ## Optimization Techniques
   * Bounding volume hierarchy (BVH) using dynamic AABB trees.
