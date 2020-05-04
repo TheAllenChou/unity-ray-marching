@@ -3,7 +3,7 @@ by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAlle
 
 ![](/img/smooth-sphere-union.gif) ![](/img/interactive-game-objects.gif) ![](/img/heat-maps.gif)
 
-## Features (Including Planned)
+## Features
   * Global Boolean operations: union, subtraction, intersection (WIP).
   * Heat maps: number of ray steps & number of SDF evaluations.
 
