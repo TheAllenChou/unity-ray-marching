@@ -1,7 +1,7 @@
 ## Unity Ray Marching - My Sandbox for Learning Ray Marching
 by **Ming-Lun "Allen" Chou** / [AllenChou.net](http://AllenChou.net) / [@TheAllenChou](http://twitter.com/TheAllenChou) / [Patreon](https://www.patreon.com/TheAllenChou)
 
-This project has been forked into [MudBun](http://longbunnylabs.com/mudbun/), a mesh-based volumetric VFX tool for Unity inspired by [Clayxels](https://andrea-intg.itch.io/clayxels).
+This project has been forked into [MudBun](http://longbunnylabs.com/mudbun/), a volumetric VFX tool for Unity inspired by [Clayxels](https://andrea-intg.itch.io/clayxels).
 
 ![](/img/smooth-sphere-union.gif) ![](/img/interactive-game-objects.gif) ![](/img/heat-maps.gif)
 
